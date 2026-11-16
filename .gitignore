@@ -1,0 +1,65 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Runtime database (auto-created; never commit) ---
+backend/data/db/*.sqlite
+backend/data/db/*.sqlite-wal
+backend/data/db/*.sqlite-shm
+backend/data/processed/*
+
+# --- Node / Next.js (Phase 6) ---
+node_modules/
+.next/
+out/
+
+# --- Playwright E2E artifacts ---
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.cache/
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- Build/test artifacts (belt-and-suspenders) ---
+backend/.coverage
+backend/data/db/*.sqlite*
+frontend/coverage/
+frontend/.turbo/
+*.tsbuildinfo
+
+# --- Transient command/test output dumps ---
+pytest_out.txt
+
+# No datasets, runtime stores, trained weights or checkpoints.
+data/raw/
+backend/data/raw/
+*.csv
+*.parquet
+*.arrow
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.h5
+*.pkl
+*.joblib
+checkpoints/
+*.log

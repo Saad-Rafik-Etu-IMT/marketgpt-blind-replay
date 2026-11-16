@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Accessible keyboard focus: a visible ring on any focused interactive
+     element, only when navigating by keyboard (not on mouse click). */
+  :focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px #020617,
+      0 0 0 4px #10b981;
+    border-radius: 0.25rem;
+  }
+}
