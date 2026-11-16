@@ -55,7 +55,7 @@ Placeholder links below are evidence of reserved locations, **not implementation
 | Feature | Level | Status | Owner pair | Evidence path / current boundary |
 | --- | --- | --- | --- | --- |
 | F1 Licensed data pipeline + data provenance | 1 | 📋 planned | A | [Data placeholder](backend/src/data/README.md); existing upload is not a licensed pipeline |
-| F2 Time split with gap | 1 | 📋 planned | A | [Data placeholder](backend/src/data/README.md) |
+| F2 Time split with gap | 1 | ✅ done | A | [Split module](backend/src/data/split.py), [config](backend/config/split.json), [split tests](backend/tests/test_split.py); synthetic data only, not yet wired to F1 data |
 | F3 Anonymizer | 1 | 📋 planned | A | [Market routes](backend/src/api/routes_market.py) still expose identities/dates |
 | F4 Approximately 20 test scenarios | 1 | 📋 planned | A | [Evaluation placeholder](backend/src/eval/README.md); regression fixtures are not benchmark scenarios |
 | F5 AI player through replay engine | 1 | 📋 planned | C | [AI placeholder](backend/src/ai/README.md), existing [replay engine](backend/src/services/replay_engine.py) |
@@ -208,7 +208,7 @@ Existing tests cover the extracted foundation only.
 | Invariant | Enforcement / test status |
 | --- | --- |
 | No API, model, tokenizer or explanation may use bars after the current index during a replay decision | Replay subset ✅: `test_api_never_returns_future_bars`, `test_chart_data_truncated_at_current_bar`, `test_order_cannot_reference_future_bar`, `test_risk_metrics_exclude_future_data` in [anti-lookahead tests](backend/tests/test_no_lookahead.py); `test_full_history_endpoint_is_not_exposed` in [market tests](backend/tests/test_routes_market.py). Model/tokenizer/explanation boundary: 📋 test planned. |
-| Chronological train/validation/test split with a gap; test scenarios used once, at the end | 📋 test planned; split sizes/gap TBD |
+| Chronological train/validation/test split with a gap; test scenarios used once, at the end | Split ✅: dates in [split.json](backend/config/split.json). Each gap holds at least `label_horizon + embargo` bars; train/validation examples keep their whole window (look-back plus label) inside their set; test decisions may use pre-test bars as warm-up but are scored only from `test_start`. Rationale in [temporal integrity](docs/anti_lookahead.md#trainvalidationtest-split-f2), tests in [test_split.py](backend/tests/test_split.py). Single use of test scenarios: 📋 planned with F4/F7. |
 | Tokenizer bins and normalization fitted on training data only | 📋 test planned |
 | Blind observations expose no ticker, date or real price level | 📋 test planned; anonymizer not implemented |
 | Code measures reasons, LLM phrases facts, validator checks output, template is fallback | 📋 test planned; F16 not implemented |
@@ -227,6 +227,7 @@ marketgpt-blind-replay/
     workflows/      backend, frontend and E2E CI
   backend/          Python manifest, runtime lock and Alembic config
     alembic/        fresh baseline and migration environment
+    config/         split boundaries (F2), no market data
     src/            application and future-work placeholders
     tests/          synthetic regression tests
   frontend/         Next.js manifest, lock and tooling configuration
@@ -250,7 +251,7 @@ Root files: [README.md](README.md), [PROVENANCE.md](PROVENANCE.md),
 | [models/](backend/src/models) | Seven-table ORM |
 | [schemas/](backend/src/schemas) | Request/response contracts |
 | [ai/](backend/src/ai/README.md) | 📋 models, attribution, explainer; README-only placeholder |
-| [data/](backend/src/data/README.md) | 📋 pipeline/anonymizer; README-only placeholder, not a dataset store |
+| [data/](backend/src/data/README.md) | F2 split ✅ ([split.py](backend/src/data/split.py)); 📋 pipeline/anonymizer; not a dataset store |
 | [eval/](backend/src/eval/README.md) | 📋 benchmark runner; README-only placeholder |
 
 ## Data policy
@@ -264,8 +265,9 @@ Root files: [README.md](README.md), [PROVENANCE.md](PROVENANCE.md),
   [provenance](PROVENANCE.md) is not a dataset licence or data-quality certificate.
 - F2/F3 must prevent train/test contamination and anonymize observations without
   losing accounting metadata, including futures treatment and contract multiplier.
-- Benchmark scenarios and split/gap sizes remain TBD; approximately 20 scenarios
-  is a target, not a claim about existing data.
+- Split dates, gaps and embargo are set in [split.json](backend/config/split.json).
+  Benchmark scenarios remain TBD; approximately 20 scenarios is a target, not a
+  claim about existing data.
 
 ## Database
 
@@ -435,6 +437,7 @@ Everything in this roadmap is 📋 planned unless the status table says otherwis
 | Out of scope | Real money, live trading, user accounts, live coaching, options/Greeks/VaR, paid APIs |
 
 Approximately six weeks is a planning assumption; calendar dates are TBD.
+Teacher approval of the project (W1) has been obtained.
 
 | Week | Deliverables | Go/no-go |
 | --- | --- | --- |
@@ -490,9 +493,10 @@ PR checklist:
 2. Compare simple baselines and a small return-trained Transformer fairly.
 3. Explain decisions from verified facts; honest negative results count as success.
 
-**Current state:** replay/accounting/upload/cockpit exist. Data pipeline, anonymizer,
-AI players, models, benchmark runner and explanations do not. README-only folders
-are not implementations. Treat this README as the project contract, then inspect code.
+**Current state:** replay/accounting/upload/cockpit and the F2 split exist. Data
+pipeline, anonymizer, AI players, models, benchmark runner and explanations do not.
+README-only folders are not implementations. Treat this README as the project
+contract, then inspect code.
 
 **Invariants:** no future observations; time splits with a gap; train-only fitting;
 test scenarios used once at the end; no identity/date/real-price leakage in planned
@@ -615,7 +619,7 @@ benchmark/result schema, model-training protocol and explanation validation prot
 No documentation stubs or benchmark commands have been created.
 
 **Remaining TBDs:** team names; deadline/defense dates and rubric; rotation mapping;
-data source/licence/version policy; split/gap sizes and scenario frequency; exact
+data source/licence/version policy; scenario frequency; exact
 scenario set; model configuration, probability/sizing semantics and local LLM
 licence/hardware; directional-accuracy labels/horizon and closed-trade aggregation;
 bootstrap/calibration/faithfulness protocols; validator tolerances and cache schema;

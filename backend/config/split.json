@@ -1,0 +1,11 @@
+{
+  "train_start": null,
+  "train_end": "2016-12-31",
+  "validation_start": "2017-04-01",
+  "validation_end": "2019-12-31",
+  "test_start": "2020-02-01",
+  "test_end": null,
+  "lookback": 64,
+  "label_horizon": 1,
+  "embargo": 5
+}

@@ -22,6 +22,44 @@ available only before that information existed.
 
 See [fill logic](fill_logic.md) for protection timing and accounting assumptions.
 
+## Train/validation/test split (F2)
+
+Boundaries live in [split.json](../backend/config/split.json), never in code, and
+apply to every asset on the same calendar dates:
+
+| Set | Dates |
+| --- | --- |
+| Train | asset start → 2016-12-31 |
+| Gap 1 | 2017-01-01 → 2017-03-31 |
+| Validation | 2017-04-01 → 2019-12-31 |
+| Gap 2 | 2020-01-01 → 2020-01-31 |
+| Test | 2020-02-01 → latest available; used once, at the end |
+
+Defaults: `lookback = 64`, `label_horizon = 1`, `embargo = 5` bars.
+[split.py](../backend/src/data/split.py) implements the rules below.
+
+- **Example window.** A decision at bar `t` reads inputs `t - lookback + 1 .. t`
+  and is labelled by bars `t + 1 .. t + label_horizon`. A train or validation
+  example is kept only if the whole window lies inside its own set; examples
+  crossing a boundary are dropped, never reassigned.
+- **Gap rule: `label_horizon + embargo` bars, not `lookback`.** Because the
+  window rule already keeps every input inside its set, the gap only has to stop
+  labels from one set sitting next to the start of the next, with `embargo`
+  extra bars of margin. Each gap must contain at least that many of the asset's
+  bars. Config loading rejects gaps with too few weekdays (an upper bound), and
+  the exact count is checked on the asset's bars. A gap is checked only when the
+  asset has bars on both sides of it.
+- **Test warm-up.** A test decision may read bars before `test_start` as
+  look-back context: past data at decision time is legitimate, not leakage.
+  Decisions and scoring (decision and label bars) start only at `test_start`.
+  Warm-up bars are never test examples, and gap bars are never examples in any set.
+- Config validation rejects overlapping or unordered sets, too-short gaps,
+  `lookback < 1`, `label_horizon < 1` and `embargo < 0`.
+
+Evidence: [test_split.py](../backend/tests/test_split.py), with synthetic weekday
+calendars only (no network, no market data). Not yet covered: F1 data loading,
+fitting the tokenizer or normalization on train only, and test scenarios.
+
 ## Evidence and limits
 
 The six core tests in [test_no_lookahead.py](../backend/tests/test_no_lookahead.py)
