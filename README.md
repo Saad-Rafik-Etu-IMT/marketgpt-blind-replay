@@ -54,7 +54,7 @@ Placeholder links below are evidence of reserved locations, **not implementation
 
 | Feature | Level | Status | Owner pair | Evidence path / current boundary |
 | --- | --- | --- | --- | --- |
-| F1 Licensed data pipeline + data provenance | 1 | 📋 planned | A | [Data placeholder](backend/src/data/README.md); existing upload is not a licensed pipeline |
+| F1 Licensed data pipeline + data provenance | 1 | ✅ done | A | [Pipeline](backend/src/data/pipeline.py), [source adapter](backend/src/data/sources.py), [command](backend/src/data/download.py), [config](backend/config/data_sources.json), [offline tests](backend/tests/test_data_pipeline.py); yfinance use confirmed by the teacher 2026-11-16; first download (yfinance 1.8.0) passed every check for all 15 ETFs; data stays local |
 | F2 Time split with gap | 1 | ✅ done | A | [Split module](backend/src/data/split.py), [config](backend/config/split.json), [split tests](backend/tests/test_split.py); synthetic data only, not yet wired to F1 data |
 | F3 Anonymizer | 1 | 📋 planned | A | [Market routes](backend/src/api/routes_market.py) still expose identities/dates |
 | F4 Approximately 20 test scenarios | 1 | 📋 planned | A | [Evaluation placeholder](backend/src/eval/README.md); regression fixtures are not benchmark scenarios |
@@ -116,8 +116,12 @@ Keep legacy `MRTL_*` names and `trading_lab.sqlite`; do not rename them incident
 
 ### Load local data
 
-1. Obtain a locally stored CSV whose licence permits the intended use (source and
-   licence status: **TBD / to verify**). No sample-data button or dataset is bundled.
+1. Obtain local CSVs whose terms permit the intended use. The F1 command
+   `..\.venv\Scripts\python.exe -m src.data.download` (from `backend`, after
+   `..\.venv\Scripts\python.exe -m pip install -e ".[data]"`) writes them to the git-ignored `backend/data/raw/yfinance/`
+   with a `provenance.json`. It refuses to run until `terms_status` in
+   [data_sources.json](backend/config/data_sources.json) is `approved` (yfinance use
+   confirmed by the teacher for local educational use). No sample-data button or dataset is bundled.
 2. Open API docs, select `POST /api/market/upload`, supply the `instrument` query
    parameter and upload the file. This is an operator workflow, not an AI observation.
 3. Use UTF-8 CSV with `date,open,high,low,close,volume`; `adjusted_close` is optional.
@@ -251,18 +255,35 @@ Root files: [README.md](README.md), [PROVENANCE.md](PROVENANCE.md),
 | [models/](backend/src/models) | Seven-table ORM |
 | [schemas/](backend/src/schemas) | Request/response contracts |
 | [ai/](backend/src/ai/README.md) | 📋 models, attribution, explainer; README-only placeholder |
-| [data/](backend/src/data/README.md) | F2 split ✅ ([split.py](backend/src/data/split.py)); 📋 pipeline/anonymizer; not a dataset store |
+| [data/](backend/src/data/README.md) | F1 download pipeline ✅, F2 split ✅; 📋 anonymizer; not a dataset store |
 | [eval/](backend/src/eval/README.md) | 📋 benchmark runner; README-only placeholder |
 
 ## Data policy
 
-- F1 is 📋 planned. Data source, licence and permitted use: **TBD / to verify**.
-  Do not infer redistribution rights from download availability.
+- F1 is ✅ done. Source: yfinance daily bars for 15 ETFs (SPY QQQ IWM DIA,
+  XLF XLE XLK XLV XLU, EFA EEM, IEF TLT LQD, GLD), listed in
+  [data_sources.json](backend/config/data_sources.json). Stooq is a documented fallback
+  only, not implemented. Terms: use confirmed by the teacher on 2026-11-16 for local
+  educational use; the download command stays gated on `terms_status`. No redistribution:
+  do not infer redistribution rights from download
+  availability.
+- **Two price representations, never mixed:** `open/high/low/close/volume` are kept
+  exactly as downloaded (yfinance `auto_adjust=False`: split-adjusted by Yahoo, not
+  dividend-adjusted) and are the only prices used for replay fills and accounting.
+  `adjusted_close` (split- and dividend-adjusted) is a separate column, used only for
+  return series in research and training. The pipeline rejects inconsistent adjustment:
+  the factor `adjusted_close / close` must lie in (0, 1], never decrease, and never
+  jump by more than a plausible dividend.
 - Keep market data local and git-ignored; the repository contains no market dataset.
   Existing ignore rules cover CSV/Parquet and common database/weight formats.
-- Planned data provenance must record source, licence, retrieval/version information,
-  transformations, adjustment/roll assumptions and split assignment. Extraction
+- Each download writes `provenance.json`, which records the source and library version,
+  terms status, download timestamp, adjustment convention, column roles, the requested
+  period, the split config and, per ticker, the file's SHA-256 hash, row count, first and
+  last dates, dropped rows and bars per split. Adjusted prices change with each new
+  dividend, so the timestamp and hashes identify the exact data. Extraction
   [provenance](PROVENANCE.md) is not a dataset licence or data-quality certificate.
+- Downloads are all-or-nothing: any ticker that fails validation, the adjustment checks
+  or the F2 gap checks aborts the run and leaves previous data untouched.
 - F2/F3 must prevent train/test contamination and anonymize observations without
   losing accounting metadata, including futures treatment and contract multiplier.
 - Split dates, gaps and embargo are set in [split.json](backend/config/split.json).
@@ -493,10 +514,11 @@ PR checklist:
 2. Compare simple baselines and a small return-trained Transformer fairly.
 3. Explain decisions from verified facts; honest negative results count as success.
 
-**Current state:** replay/accounting/upload/cockpit and the F2 split exist. Data
-pipeline, anonymizer, AI players, models, benchmark runner and explanations do not.
-README-only folders are not implementations. Treat this README as the project
-contract, then inspect code.
+**Current state:** replay/accounting/upload/cockpit, the F1 download pipeline and the
+F2 split exist (market data is local-only, never in git). Anonymizer, AI players,
+models, benchmark runner and explanations do not. Raw OHLC drives fills;
+`adjusted_close` is only for returns. README-only folders are not implementations.
+Treat this README as the project contract, then inspect code.
 
 **Invariants:** no future observations; time splits with a gap; train-only fitting;
 test scenarios used once at the end; no identity/date/real-price leakage in planned
@@ -619,7 +641,7 @@ benchmark/result schema, model-training protocol and explanation validation prot
 No documentation stubs or benchmark commands have been created.
 
 **Remaining TBDs:** team names; deadline/defense dates and rubric; rotation mapping;
-data source/licence/version policy; scenario frequency; exact
+data version policy for re-downloads; scenario frequency; exact
 scenario set; model configuration, probability/sizing semantics and local LLM
 licence/hardware; directional-accuracy labels/horizon and closed-trade aggregation;
 bootstrap/calibration/faithfulness protocols; validator tolerances and cache schema;

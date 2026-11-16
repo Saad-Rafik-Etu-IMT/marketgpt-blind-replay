@@ -34,7 +34,10 @@ class OHLCVBar(BaseModel):
     volume: int = Field(ge=0, description="Traded volume; >= 0.")
     adjusted_close: float | None = Field(
         default=None,
-        description="Split/dividend-adjusted close, if available.",
+        description=(
+            "Split/dividend-adjusted close, if available. Return series for "
+            "research/training only; fills and accounting use raw OHLC."
+        ),
     )
 
     @model_validator(mode="after")

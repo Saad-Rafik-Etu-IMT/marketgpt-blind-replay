@@ -28,6 +28,11 @@ Commissions are separate cash flows per unit per side. **Reference price is insi
 OHLC; executed price may be outside OHLC after synthetic spread.** Extraction
 preserves this distinction and does not clamp executed prices back into the bar.
 
+Fills and accounting use raw `open/high/low/close` only. `adjusted_close`
+(split- and dividend-adjusted) is a return series for research/training and
+never changes a fill (`test_fills_ignore_adjusted_close` in
+[test_fill_logic.py](../backend/tests/test_fill_logic.py)).
+
 ## Examples
 
 ### Market buy at the open

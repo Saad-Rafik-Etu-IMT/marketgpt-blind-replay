@@ -51,6 +51,29 @@ def _bar(open_: float, high: float, low: float, close: float) -> OHLCVBar:
 # --- Market orders ---------------------------------------------------------
 
 
+@pytest.mark.parametrize(
+    "order",
+    [
+        OrderInputs(side="buy", order_type="market"),
+        OrderInputs(side="buy", order_type="limit", limit_price=99.0),
+        OrderInputs(side="sell", order_type="stop", stop_price=99.0),
+    ],
+)
+def test_fills_ignore_adjusted_close(order: OrderInputs) -> None:
+    # Fills use raw OHLC only; the adjusted return series must never move them.
+    decisions = {
+        decide_fill(
+            order,
+            _bar(100, 105, 98, 102).model_copy(update={"adjusted_close": adjusted}),
+            submitted_at_bar=5,
+            current_bar=6,
+        )
+        for adjusted in (None, 51.0, 102.0, 204.0)
+    }
+    assert len(decisions) == 1
+    assert next(iter(decisions)).should_fill is True
+
+
 def test_market_buy_fills_next_bar_at_open() -> None:
     order = OrderInputs(side="buy", order_type="market")
     decision = decide_fill(

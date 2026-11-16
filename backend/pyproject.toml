@@ -20,6 +20,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# F1 download only (python -m src.data.download); never needed by tests or CI.
+data = [
+    "yfinance>=0.2.48",       # multi_level_index= keyword used by the source adapter
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",

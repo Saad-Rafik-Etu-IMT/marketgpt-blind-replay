@@ -1,0 +1,14 @@
+{
+  "source": "yfinance",
+  "terms_status": "approved",
+  "terms_note": "Use of Yahoo Finance / yfinance data confirmed by the teacher on 2026-11-16 for local educational use; data stays local and is never redistributed.",
+  "start": "1993-01-01",
+  "end": null,
+  "tickers": [
+    "SPY", "QQQ", "IWM", "DIA",
+    "XLF", "XLE", "XLK", "XLV", "XLU",
+    "EFA", "EEM",
+    "IEF", "TLT", "LQD",
+    "GLD"
+  ]
+}
