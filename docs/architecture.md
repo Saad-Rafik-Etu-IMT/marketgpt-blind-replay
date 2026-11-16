@@ -1,8 +1,12 @@
 # Architecture
 
 ```text
-Next.js replay page
-  -> cockpit / hooks / typed API
+Next.js shared research shell
+  -> Experiments / Inspector / Evaluation
+     -> research provider / validated in-memory artifacts or explicit demo
+     -> read-only operator instrument-summary adapter
+  -> Replay
+     -> cockpit / hooks / typed API
   -> FastAPI routes
   -> services
   -> deterministic core + ORM
@@ -11,6 +15,11 @@ Next.js replay page
 
 The target retains the source's synchronous SQLAlchemy, polling-based React Query
 workflow and application factory. There are no AI implementations yet.
+
+The first [research interface milestone](research-interface.md) adds no backend
+routes or tables. Its proposed versioned contract is independent of future
+exporters. Imported artifacts never enter replay observations; explanations are
+saved text or explicitly synthetic examples, not live generation.
 
 | Layer | Responsibility |
 | --- | --- |

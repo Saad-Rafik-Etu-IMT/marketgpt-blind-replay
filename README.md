@@ -4,8 +4,8 @@
 compare a small Transformer trained on past returns (MarketGPT) with simple
 players on unseen historical market periods, hiding tickers, dates and real
 price levels. The repository currently contains a working local replay
-foundation; blind observations, models, evaluation and verified natural-language
-explanations are planned, not implemented.
+foundation and an initial research cockpit; blind observations, models, evaluation
+runners and real natural-language explanation generation are planned, not implemented.
 
 **Educational simulation only: no real money, live broker or investment advice.**
 
@@ -14,6 +14,46 @@ The foundation was extracted from the personal project `market-replay-trading-la
 new extraction files, dependency cuts and TODOs. That inventory defines inherited
 work; subsequent work outside it is the team's course contribution. No market
 datasets, source databases or trained weights are included.
+
+## Research interface: first milestone
+
+The default page is **Experiments**, with **Inspector**, **Evaluation**, and the
+preserved **Replay** route in a shared light/dark, responsive shell.
+
+| Page | Route | First-milestone capability |
+| --- | --- | --- |
+| Experiments | `/experiments` (default from `/`) | Run ledger, training/validation curves with missing-value handling, dataset/split/checkpoint identifiers |
+| Inspector | `/inspector` | Saved prediction, model probabilities, bounded input features, explanation/template and fact sheet; execution stages kept separate |
+| Evaluation | `/evaluation` | Saved report, retrospective misclassification and link back to the original Inspector sample; explicit unavailable aggregate metrics |
+| Replay | `/replay` | Existing session, chart, order, portfolio and risk workflow; execution semantics unchanged |
+
+**Try the connected example:** select **Load synthetic demo** → **Inspect prediction**
+→ **Review saved evaluation** → the failure's **Inspector** link.
+One deterministic bundle supplies the run, loss curve, prediction, explanation,
+facts and outcome. The persistent banner identifies synthetic data.
+No model was trained or called to produce this example.
+
+Real mode defaults to honest unavailable research states, plus the existing
+instrument-summary API in Experiments. **Import research JSON** accepts a proposed
+version-1 integration contract, not an existing backend/exporter format:
+
+- Maximum 2 MiB; schema version, collection bounds, finite numbers, probability
+  ranges/sum and cross-references are validated before display.
+- Imports stay in browser memory, are never uploaded, and disappear on reload.
+  Selecting **Real mode** clears the loaded bundle. Imported origin/results are
+  exporter declarations, not independently verified experimental evidence.
+- Missing or invalid data never falls back to the demo. Failed imports clear
+  previous evidence; stale imports cannot overwrite a newer source selection.
+- `run`, `sample` and `report` query parameters identify selections. Shared links
+  require the same artifact to be loaded; mismatched selections show a warning.
+- Research imports never enter Replay observations. Imported text is displayed
+  as text, not executable HTML.
+
+See [research interface contracts, limitations and checks](docs/research-interface.md).
+Explanation interface implemented; real LLM generation integration pending.
+This milestone does not mark MarketGPT, F16 or evaluation as complete.
+Run comparison/filtering, F1 provenance import, token inspection, attribution,
+live LLM integration and full predictive/explanation evaluation remain deferred.
 
 ## Research questions and success
 
@@ -55,21 +95,21 @@ Placeholder links below are evidence of reserved locations, **not implementation
 | Feature | Level | Status | Owner pair | Evidence path / current boundary |
 | --- | --- | --- | --- | --- |
 | F1 Licensed data pipeline + data provenance | 1 | ✅ done | A | [Pipeline](backend/src/data/pipeline.py), [source adapter](backend/src/data/sources.py), [command](backend/src/data/download.py), [config](backend/config/data_sources.json), [offline tests](backend/tests/test_data_pipeline.py); yfinance use confirmed by the teacher 2026-11-16; first download (yfinance 1.8.0) passed every check for all 15 ETFs; data stays local |
-| F2 Time split with gap | 1 | ✅ done | A | [Split module](backend/src/data/split.py), [config](backend/config/split.json), [split tests](backend/tests/test_split.py); synthetic data only, not yet wired to F1 data |
+| F2 Time split with gap | 1 | ✅ done | A | [Split module](backend/src/data/split.py), [config](backend/config/split.json), [split tests](backend/tests/test_split.py); F1 [pipeline](backend/src/data/pipeline.py) validates per-asset gaps and records split counts in provenance |
 | F3 Anonymizer | 1 | 📋 planned | A | [Market routes](backend/src/api/routes_market.py) still expose identities/dates |
 | F4 Approximately 20 test scenarios | 1 | 📋 planned | A | [Evaluation placeholder](backend/src/eval/README.md); regression fixtures are not benchmark scenarios |
 | F5 AI player through replay engine | 1 | 📋 planned | C | [AI placeholder](backend/src/ai/README.md), existing [replay engine](backend/src/services/replay_engine.py) |
 | F6 Buy-and-hold, MA crossover, MLP from scratch | 1 | 📋 planned | B | [AI placeholder](backend/src/ai/README.md) |
 | F7 Evaluation runner | 1 | 📋 planned | C | [Evaluation placeholder](backend/src/eval/README.md); some [core metrics](backend/src/core/risk_metrics.py) exist |
-| F8 Benchmark safety tests | 1 | 📋 planned; replay subset ✅ done | A + all pairs | [Replay invariants](backend/tests/test_no_lookahead.py); new pipeline/model invariants untested |
+| F8 Benchmark safety tests | 1 | 📋 planned; replay/data subsets implemented | A + all pairs | [Replay invariants](backend/tests/test_no_lookahead.py), [pipeline tests](backend/tests/test_data_pipeline.py), [split tests](backend/tests/test_split.py); model/player benchmark safety remains planned |
 | F9 Market tokenizer, approximately 32 return bins | 2 | 📋 planned | B | [AI placeholder](backend/src/ai/README.md) |
 | F10 Small MarketGPT Transformer: long/flat/short + probability | 2 | 📋 planned | B | [AI placeholder](backend/src/ai/README.md) |
 | F11 LSTM | Stretch | ⏸ stretch | B | [AI placeholder](backend/src/ai/README.md) |
 | F12 Training ablations, three seeds | 2 | 📋 planned | C; B support | [Evaluation placeholder](backend/src/eval/README.md) |
 | F13 Calibration | 2 | 📋 planned | A; C support | [Evaluation placeholder](backend/src/eval/README.md) |
-| F14 Research page | 2 | 📋 planned | B | [App](frontend/app) currently has only root/replay pages |
+| F14 Research page | 2 | 🚧 first milestone | B | [Research interface](docs/research-interface.md): shell, validated artifact import and one connected synthetic workflow; full comparisons/evaluation deferred |
 | F15 LLM memory-leak experiment | 3 | 📋 planned; gated on Level 2 | A | [Evaluation placeholder](backend/src/eval/README.md) |
-| F16 Verified explained decisions | 2 | 📋 planned | B attribution; A LLM/validator | [AI placeholder](backend/src/ai/README.md) |
+| F16 Fact-grounded decision explanations | 2 | 📋 backend planned; initial UI implemented | B attribution; A LLM/validator | [Explanation interface](docs/research-interface.md); [AI placeholder](backend/src/ai/README.md), no live LLM, attribution or semantic validator |
 
 ## Quick start (Windows / PowerShell)
 
@@ -90,7 +130,7 @@ network access; it is separate from the offline-test requirement.
 
 | Service/store | Default |
 | --- | --- |
-| Frontend | `http://localhost:3000` (also `/replay`) |
+| Frontend | `http://localhost:3000` → `/experiments`; existing replay at `/replay` |
 | Backend/API docs | `http://localhost:8000/docs` |
 | Fresh database | `backend/data/db/trading_lab.sqlite`, created on first DB request |
 
@@ -109,6 +149,7 @@ Configuration is implemented in [start.ps1](start.ps1),
 | `MRTL_FRONTEND_ORIGIN` | Optional extra CORS origin; launcher matches the frontend port |
 | `MRTL_DATABASE_URL` | Override the SQLite URL for both application and migrations |
 | `MRTL_PYTHON` | Optional Playwright backend interpreter override; CI sets it to `python` |
+| `MRTL_NEXT_DIST_DIR` | Optional isolated Next.js output directory; default `.next`, E2E uses `.next-e2e` |
 
 For manually launched processes, set the API URL and frontend origin consistently.
 The original `localhost`/`127.0.0.1` port-3000 CORS origins remain allowed.
@@ -128,7 +169,10 @@ Keep legacy `MRTL_*` names and `trading_lab.sqlite`; do not rename them incident
    Dates must be strictly increasing and unique; rows must satisfy OHLC validation.
    The upload cap is 10 MiB. Invalid files are refused; already-loaded dates for
    the same instrument are rejected.
-4. Reload the frontend, choose the instrument and range, then start a replay.
+4. Open **Replay**, reload if needed, choose the instrument and range, then start a session.
+
+The research demo does not seed the replay database. Market CSV upload and
+browser-only research JSON import are separate workflows with different contracts.
 
 Tests generate synthetic data; no CSV fixture is required. Never expose either
 service to untrusted networks: authentication and multi-user isolation do not exist.
@@ -137,7 +181,12 @@ service to untrusted networks: authentication and multi-user isolation do not ex
 
 ```mermaid
 flowchart LR
-    UI["Next.js 14 :3000"] --> API["FastAPI :8000 - api"]
+    UI["Next.js 14 research shell :3000"] --> REPLAY["Replay + typed API hooks"]
+    REPLAY --> API["FastAPI :8000 - api"]
+    UI --> RESEARCH["Experiments / Inspector / Evaluation"]
+    ART["Validated browser-memory artifacts or explicit synthetic demo"] --> RESEARCH
+    RESEARCH --> META["Read-only instrument-summary adapter"]
+    META --> API
     API --> S["services - orchestration"]
     S --> C["core - deterministic math"]
     S --> ORM["models - SQLAlchemy"]
@@ -207,7 +256,8 @@ accounting metadata, not merely rename symbols.
 ## Non-negotiable invariants
 
 These are project requirements, not a claim that all future components are safe.
-Existing tests cover the extracted foundation only.
+Existing tests cover replay, F1/F2 data handling and the first research-interface
+milestone. They do not certify the planned models or live explanation pipeline.
 
 | Invariant | Enforcement / test status |
 | --- | --- |
@@ -235,13 +285,13 @@ marketgpt-blind-replay/
     src/            application and future-work placeholders
     tests/          synthetic regression tests
   frontend/         Next.js manifest, lock and tooling configuration
-    app/            root and replay pages
-    components/     cockpit and shared UI
+    app/            root redirect, experiments, inspector, evaluation, replay
+    components/     research shell/panels, replay cockpit and shared UI
     hooks/          session, order and portfolio queries
-    lib/            API transport, types, constants and indicators
-    __tests__/      component smoke tests
-    e2e/            synthetic Playwright workflow
-  docs/             architecture, temporal integrity and fill rules
+    lib/            API transport, research contract/adapters/demo, indicators
+    __tests__/      replay smoke, artifact validation and research-state tests
+    e2e/            replay, connected research and browser-import workflows
+  docs/             architecture, integrity, fill rules, research contracts
 ```
 
 Root files: [README.md](README.md), [PROVENANCE.md](PROVENANCE.md),
@@ -326,7 +376,12 @@ All model work below is 📋 planned except explicitly marked stretch work.
 | F15 memory-leak experiment | Blind versus dated LLM observations with bootstrap confidence intervals; only after Level 2 |
 | F11 and other extensions | ⏸ LSTM, attention maps, LoRA-tuned small explainer and Docker |
 
-### F16: verified explanations (planned)
+### F16: fact-grounded explanations (backend planned)
+
+The Inspector already renders saved explanation text, a template baseline, facts
+and recorded automated-check outcomes. These are imported records or explicitly
+synthetic examples, not live generation or independently verified reasoning.
+The pipeline below remains planned.
 
 ```mermaid
 flowchart TD
@@ -337,7 +392,7 @@ flowchart TD
     F --> L["Local LLM via Ollama"]
     L --> V{"Validator accepts"}
     F --> V
-    V -->|Yes| OK["Verified LLM badge"]
+    V -->|Yes| OK["Automated checks passed"]
     V -->|No| T["Fact-based template fallback"]
     F --> T
     T --> TB["Template badge"]
@@ -352,7 +407,8 @@ claims or identifying information in blind mode. Invalid output or unavailable
 local inference must produce an explicit template fallback, never an invented
 explanation. Exact tolerances, cache schema and failure diagnostics are TBD.
 The LLM does not decide the reason: occlusion measures sensitivity, not a proven
-causal explanation. "Verified LLM" means checks passed, not that causality is proven.
+causal explanation. Passing automated checks does not establish that the entire
+explanation is true or that causality is proven.
 
 ## Evaluation and testing
 
@@ -375,11 +431,21 @@ npm run e2e
 Set-Location ..
 ```
 
-E2E owns ports 3100/8100, never reuses existing servers, uses an isolated SQLite
-file, uploads inline synthetic bars and shuts down its servers afterward.
-It checks API docs, removed history access, browser execution, portfolio/risk
-and completion. Its ignored database files can be removed after the servers stop.
-This one E2E is a regression, not a benchmark result. The current configuration is
+E2E owns ports 3100/8100 and `.next-e2e`, never reuses existing servers, uses an
+isolated SQLite file and shuts down its servers afterward:
+
+- The unchanged Replay test uploads synthetic bars and checks API docs, removed
+  history access, orders, portfolio/risk and completion.
+- The connected research test checks default real mode, explicit demo activation,
+  prediction/explanation/failure navigation, keyboard controls and page overflow.
+  It captures all three research pages in light/dark themes at 1440px and 390px.
+- The import test checks unavailable API data, rejected schema versions,
+  text-only rendering, no upload requests and clearing on reload.
+
+Screenshots are generated locally under `frontend/test-results/`; they are ignored
+and not bundled in the repository. Test databases can be removed after the servers
+stop. These checks are regressions, not experimental benchmark results.
+The current configuration is
 [playwright.config.ts](frontend/playwright.config.ts).
 
 The backend **85% coverage gate is unchanged**. Tests must run offline once
@@ -387,7 +453,31 @@ dependencies/browsers are available; network-isolation enforcement is 📋 plann
 CI installation steps are not offline. Do not weaken assertions, skip failures or
 add trivial coverage-filler tests to meet the threshold.
 
-### Historical validation, not current results
+### Recorded research-milestone validation — 2026-11-16
+
+Executed locally against the uncommitted first-milestone implementation, before
+this README-only update:
+
+| Check | Recorded result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed; no ESLint warnings/errors |
+| `npm test` | 22 passed: 4 existing smoke tests and 18 research tests |
+| `npm run build` | Passed with `MRTL_NEXT_DIST_DIR=.next-verify` |
+| `npm run e2e` | 3 passed with `PW_DISABLE_TS_ESM=1` on installed Node 20.7.0 |
+| Visual inspection | All 12 research screenshots inspected; narrow tables/chart labels corrected, no page-level horizontal overflow |
+
+The default build initially hit a locked `.next/trace`; isolated output avoided
+the unrelated running service. Playwright initially failed in the older Node ESM
+loader; its existing CommonJS loader ran the full suite without dependency changes
+or skipped tests. See Troubleshooting below.
+
+Backend code/schema were unchanged and the backend unit suite was **not rerun**
+for this milestone. Test servers stopped and generated test databases were removed.
+These dated local results are not a CI report, current system-health indicator,
+model evaluation or guarantee for subsequent edits.
+
+### Historical extraction validation
 
 **At extraction, target snapshot
 `5dd4c35e7d77a5a3d9071801e75fe40e93c58f39`: 238 backend tests passed,
@@ -514,9 +604,12 @@ PR checklist:
 2. Compare simple baselines and a small return-trained Transformer fairly.
 3. Explain decisions from verified facts; honest negative results count as success.
 
-**Current state:** replay/accounting/upload/cockpit, the F1 download pipeline and the
-F2 split exist (market data is local-only, never in git). Anonymizer, AI players,
-models, benchmark runner and explanations do not. Raw OHLC drives fills;
+**Current state:** replay/accounting/upload, the F1 download pipeline, F2 split and
+the first research-cockpit milestone exist (market data is local-only, never in git).
+The UI has three research pages, explicit demo mode and validated browser-memory
+imports; real integration currently reads instrument summaries. Anonymizer, AI
+players, models, benchmark runner, attribution and live explanation generation
+do not exist. Saved/synthetic explanation UI is not F16 completion. Raw OHLC drives fills;
 `adjusted_close` is only for returns. README-only folders are not implementations.
 Treat this README as the project contract, then inspect code.
 
@@ -578,13 +671,16 @@ Implement only the agreed scope, run relevant checks, and report evidence and li
 | Current | Futures margin, variation settlement and rolls are not simulated; `=F` metadata affects accounting |
 | Current | Adjusted data, rolls and known historical outcomes can contaminate research without an API lookahead leak |
 | Current | No authentication or multi-user isolation; a local operator can inspect the database |
+| Current | Research exporters/backends are absent; built-in results and explanation are synthetic, imported records are exporter declarations |
+| Current | Research imports disappear on reload; shared selection URLs do not transfer artifacts |
+| Current | No machine-readable test report is loaded in the UI; recorded checks do not verify explanation truth |
 | Current | Inherited dependency warnings, including Next.js 14.2.5, are recorded in provenance; not a hardened deployment |
 | Current naming issue | `test_jump_backward_allowed` asserts rejection; its name is misleading |
 | Anticipated F16 | Occlusion is an approximation, validation is heuristic, and local LLM CPU latency must be measured (TBD) |
 | Anticipated F15 | Blind/dated differences alone cannot establish memorization as the cause |
 
 Use locally for education and reproducible research only. A profitable replay,
-passing test suite or "verified LLM" badge is not evidence of real trading skill,
+passing test suite or "Automated checks passed" label is not evidence of real trading skill,
 causal understanding or safe investment advice.
 
 ## Troubleshooting
@@ -596,6 +692,25 @@ causal understanding or safe investment advice.
   the source repository's editable Python installation.
 - **Missing Chromium:** from `frontend`, run `npx playwright install chromium`
   while online, then run tests. Do not disable TLS verification to resolve downloads.
+- **Locked Next output (`EPERM` on `.next/trace`):** do not stop unrelated services.
+  From `frontend`, build in an isolated directory, then clear the override:
+
+```powershell
+$env:MRTL_NEXT_DIST_DIR = ".next-verify"
+npm run build
+Remove-Item Env:MRTL_NEXT_DIST_DIR
+```
+
+- **Node 20.7.0 Playwright `parentURL` / `ERR_INVALID_ARG_TYPE`:** the following
+  was used for the research milestone. It selects Playwright's existing CommonJS
+  TypeScript loader for this project, without downloads or dependency changes:
+
+```powershell
+$env:PW_DISABLE_TS_ESM = "1"
+npm run e2e
+Remove-Item Env:PW_DISABLE_TS_ESM
+```
+
 - **Older Node during extraction:** system Node 20.7.0 built the app but failed in
   Playwright's loader. Node 20.20.2 ran browser tests successfully at extraction.
   Prefer a current Node 20 patch. The historical isolated workaround below runs
@@ -608,6 +723,10 @@ npm exec --yes --package=node@20 -- node node_modules\playwright\cli.js test
 
 - **Empty instrument selector:** no data is bundled; upload a valid CSV through
   API docs and reload. Do not restore the removed full-history or seed endpoints.
+- **No research data:** explicitly load the synthetic demo or import a research
+  bundle matching the [proposed version-1 contract](docs/research-interface.md).
+  F1 `provenance.json` is not a research bundle; its adapter is deferred.
+  Re-import after reload before opening a shared run/sample/report URL.
 - **Browser/API mismatch:** verify `NEXT_PUBLIC_API_BASE_URL` and
   `MRTL_FRONTEND_ORIGIN` match the selected ports; restart manually launched processes.
 
@@ -634,11 +753,13 @@ npm exec --yes --package=node@20 -- node node_modules\playwright\cli.js test
 - [Architecture and inherited layering exceptions](docs/architecture.md)
 - [Temporal integrity](docs/anti_lookahead.md)
 - [Fill, spread and protection rules](docs/fill_logic.md)
+- [Research interface, proposed artifact contract and deferred features](docs/research-interface.md)
 - [CI configuration](.github/workflows/ci.yml)
 
 📋 Planned documentation, not existing files: licensed data/split protocol,
-benchmark/result schema, model-training protocol and explanation validation protocol.
-No documentation stubs or benchmark commands have been created.
+backend benchmark/exporter schema, model-training protocol and explanation validation
+protocol. The proposed frontend research contract exists; it does not implement
+those systems or provide a runnable benchmark command.
 
 **Remaining TBDs:** team names; deadline/defense dates and rubric; rotation mapping;
 data version policy for re-downloads; scenario frequency; exact

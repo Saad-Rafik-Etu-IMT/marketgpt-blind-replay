@@ -41,6 +41,7 @@ export default defineConfig({
       env: {
         NEXT_PUBLIC_API_BASE_URL: backendUrl,
         NEXT_TELEMETRY_DISABLED: "1",
+        MRTL_NEXT_DIST_DIR: ".next-e2e",
       },
     },
   ],

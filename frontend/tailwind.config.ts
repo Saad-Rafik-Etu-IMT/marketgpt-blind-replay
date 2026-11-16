@@ -1,9 +1,7 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Design tokens. The cockpit is a dark, dense trading UI; these semantic
- * aliases sit on top of Tailwind's slate/emerald palette so components can
- * reference intent (`surface`, `border`, `primary`) rather than raw shades.
+ * Semantic tokens shared by research and the retained replay components.
  */
 const config: Config = {
   content: [
@@ -13,14 +11,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        slate: {
+          50: "var(--s50)", 100: "var(--s100)", 200: "var(--s200)",
+          300: "var(--s300)", 400: "var(--s400)", 500: "var(--s500)",
+          600: "var(--s600)", 700: "var(--s700)", 800: "var(--s800)",
+          900: "var(--s900)", 950: "var(--s950)",
+        },
         surface: {
-          DEFAULT: "#0f172a",
-          muted: "#020617",
-          raised: "#1e293b",
+          DEFAULT: "var(--panel)",
+          muted: "var(--bg)",
+          raised: "var(--raised)",
         },
         primary: {
-          DEFAULT: "#047857",
-          hover: "#059669",
+          DEFAULT: "var(--accent)",
+          hover: "var(--accent-hover)",
         },
         danger: {
           DEFAULT: "#b91c1c",

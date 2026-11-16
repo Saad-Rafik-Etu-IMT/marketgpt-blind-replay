@@ -1,0 +1,49 @@
+import { parseResearchBundle } from "./contract";
+
+// One fixed narrative; all three pages consume this same validated bundle.
+export const demoBundle = parseResearchBundle({
+  schemaVersion: 1,
+  origin: "synthetic",
+  runs: [{
+    id: "demo-run-01", model: "MarketGPT (illustrative)", dataset: "synthetic-returns-v1",
+    split: "chronological-demo-v1", checkpoint: "illustrative-step-400", seed: 7,
+    lossName: "Cross-entropy (nats)",
+    curves: [
+      { step: 100, trainingLoss: 1.12, validationLoss: 1.15 },
+      { step: 200, trainingLoss: 0.94, validationLoss: 1.01 },
+      { step: 300, trainingLoss: 0.81, validationLoss: null },
+      { step: 400, trainingLoss: 0.72, validationLoss: 0.93 },
+    ],
+  }],
+  samples: [{
+    id: "demo-sample-064", runId: "demo-run-01", decisionBar: 64, predicted: "long",
+    probabilities: { long: 0.62, flat: 0.23, short: 0.15 },
+    inputs: [
+      { bar: 62, feature: "past return", value: -0.4, unit: "%" },
+      { bar: 63, feature: "past return", value: 0.2, unit: "%" },
+      { bar: 64, feature: "past return", value: 0.6, unit: "%" },
+    ],
+    explanation: {
+      text: "The example model assigns its largest probability to long (0.62). The supplied window ends with positive returns of 0.2% and 0.6% [f63, f64]. These observations describe the input; they do not establish why the model chose long or guarantee the next return.",
+      template: "Predicted class: long. Model probabilities: long 0.62, flat 0.23, short 0.15. Decision boundary: bar 64.",
+      modelVersion: "synthetic-explainer-v1 (not an LLM call)", promptVersion: "facts-only-example-v1",
+      facts: [
+        { id: "f63", bar: 63, text: "Past return at bar 63 is 0.2%." },
+        { id: "f64", bar: 64, text: "Past return at bar 64 is 0.6%." },
+      ],
+      references: ["f63", "f64"],
+      checks: [
+        { name: "Numeric references", passed: true, detail: "Example check: 0.2% and 0.6% match the supplied fact sheet." },
+        { name: "Visible references", passed: true, detail: "Example check: f63 and f64 refer only to bars at or before 64." },
+      ],
+    },
+  }],
+  reports: [{
+    id: "demo-eval-01", runId: "demo-run-01", split: "synthetic-validation", cutoffBar: 65,
+    sampleCount: 1, macroF1: null,
+    failures: [{
+      sampleId: "demo-sample-064", observed: "short", outcomeBar: 65,
+      detail: "Synthetic next-bar return is -0.8%. Under this example's ±0.1% flat band, the observed class is short.",
+    }],
+  }],
+});

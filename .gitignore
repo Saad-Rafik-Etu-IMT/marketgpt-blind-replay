@@ -19,6 +19,7 @@ backend/data/processed/*
 # --- Node / Next.js (Phase 6) ---
 node_modules/
 .next/
+.next-*/
 out/
 
 # --- Playwright E2E artifacts ---

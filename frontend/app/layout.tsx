@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "MarketGPT Blind Replay",
-  description: "Local-only educational replay benchmark foundation.",
+  title: "Blind Replay Bench",
+  description: "AI research cockpit for an educational replay benchmark.",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
+    <html lang="en">
       <body className="bg-slate-950 text-slate-100 min-h-screen">
         <Providers>{children}</Providers>
       </body>

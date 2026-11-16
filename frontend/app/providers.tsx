@@ -1,7 +1,9 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { ResearchProvider } from "@/components/research/ResearchProvider";
+import { AppShell } from "@/components/research/AppShell";
 
 import { ToastProvider } from "@/components/ui";
 import { POLL_INTERVAL_MS } from "@/lib/constants";
@@ -31,7 +33,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={client}>
-      <ToastProvider>{children}</ToastProvider>
+      <ToastProvider>
+        <ResearchProvider>
+          <Suspense fallback={<p role="status">Loading research cockpit…</p>}>
+            <AppShell>{children}</AppShell>
+          </Suspense>
+        </ResearchProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

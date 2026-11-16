@@ -93,6 +93,7 @@ function CandlestickReplayChartImpl({
   useEffect(() => {
     if (!containerRef.current) return;
     let cancelled = false;
+    let themeObserver: MutationObserver | undefined;
 
     void (async () => {
       const lwc = await import("lightweight-charts");
@@ -109,6 +110,16 @@ function CandlestickReplayChartImpl({
         rightPriceScale: { borderColor: "#1e293b" },
         crosshair: { mode: lwc.CrosshairMode.Normal },
       });
+      const applyTheme = () => {
+        const style = getComputedStyle(document.documentElement);
+        chart.applyOptions({
+          layout: { background: { color: style.getPropertyValue("--panel").trim() }, textColor: style.getPropertyValue("--fg").trim() },
+          grid: { vertLines: { color: style.getPropertyValue("--line").trim() }, horzLines: { color: style.getPropertyValue("--line").trim() } },
+        });
+      };
+      applyTheme();
+      themeObserver = new MutationObserver(applyTheme);
+      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
       const candle = chart.addCandlestickSeries({
         upColor: "#16a34a",
         downColor: "#dc2626",
@@ -175,6 +186,7 @@ function CandlestickReplayChartImpl({
 
     return () => {
       cancelled = true;
+      themeObserver?.disconnect();
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
