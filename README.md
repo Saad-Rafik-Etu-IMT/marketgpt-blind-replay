@@ -96,14 +96,14 @@ Placeholder links below are evidence of reserved locations, **not implementation
 | --- | --- | --- | --- | --- |
 | F1 Licensed data pipeline + data provenance | 1 | ✅ done | A | [Pipeline](backend/src/data/pipeline.py), [source adapter](backend/src/data/sources.py), [command](backend/src/data/download.py), [config](backend/config/data_sources.json), [offline tests](backend/tests/test_data_pipeline.py); yfinance use confirmed by the teacher 2026-11-16; first download (yfinance 1.8.0) passed every check for all 15 ETFs; data stays local |
 | F2 Time split with gap | 1 | ✅ done | A | [Split module](backend/src/data/split.py), [config](backend/config/split.json), [split tests](backend/tests/test_split.py); F1 [pipeline](backend/src/data/pipeline.py) validates per-asset gaps and records split counts in provenance |
-| F3 Anonymizer | 1 | 📋 planned | A | [Market routes](backend/src/api/routes_market.py) still expose identities/dates |
-| F4 Approximately 20 test scenarios | 1 | 📋 planned | A | [Evaluation placeholder](backend/src/eval/README.md); regression fixtures are not benchmark scenarios |
-| F5 AI player through replay engine | 1 | 📋 planned | C | [AI placeholder](backend/src/ai/README.md), existing [replay engine](backend/src/services/replay_engine.py) |
+| F3 Anonymizer | 1 | 🚧 observation builder done; player wiring planned | A | [Anonymizer](backend/src/data/anonymizer.py): 64 adjusted-close log returns + bar offsets only, [tests](backend/tests/test_anonymizer.py) incl. future perturbation through the replay engine; [market routes](backend/src/api/routes_market.py) still expose identities/dates (not a blind API) |
+| F4 Approximately 20 test scenarios | 1 | ✅ done (definitions and frozen manifests) | A | [Scenario rules](backend/config/scenarios.json), [generator](backend/src/data/scenarios.py), manifests ([development](backend/config/scenarios/development.json): 8; sealed [test](backend/config/scenarios/test.json): 24), [tests](backend/tests/test_scenarios.py), [contract](docs/benchmark.md); SPY + IEF two-asset case study; no results |
+| F5 AI player through replay engine | 1 | 🚧 interface + execution adapter done; no players or runner | C | [Player interface](backend/src/ai/player.py), [execution adapter](backend/src/eval/execution.py), [benchmark profiles](backend/config/benchmark_profiles) (default benchmark-v2 with a 0.5% cash reserve), fill-time [affordability check](docs/fill_logic.md#fill-time-affordability-fill-time-cash-check-v1); [adapter tests](backend/tests/test_execution_adapter.py), [affordability tests](backend/tests/test_fill_affordability.py); synthetic only |
 | F6 Buy-and-hold, MA crossover, MLP from scratch | 1 | 📋 planned | B | [AI placeholder](backend/src/ai/README.md) |
 | F7 Evaluation runner | 1 | 📋 planned | C | [Evaluation placeholder](backend/src/eval/README.md); some [core metrics](backend/src/core/risk_metrics.py) exist |
-| F8 Benchmark safety tests | 1 | 📋 planned; replay/data subsets implemented | A + all pairs | [Replay invariants](backend/tests/test_no_lookahead.py), [pipeline tests](backend/tests/test_data_pipeline.py), [split tests](backend/tests/test_split.py); model/player benchmark safety remains planned |
+| F8 Benchmark safety tests | 1 | 📋 planned; replay/data/scenario/observation subsets implemented | A + all pairs | [Replay invariants](backend/tests/test_no_lookahead.py), [pipeline tests](backend/tests/test_data_pipeline.py), [split tests](backend/tests/test_split.py), [scenario tests](backend/tests/test_scenarios.py), [observation tests](backend/tests/test_anonymizer.py); model/player benchmark safety remains planned |
 | F9 Market tokenizer, approximately 32 return bins | 2 | 📋 planned | B | [AI placeholder](backend/src/ai/README.md) |
-| F10 Small MarketGPT Transformer: long/flat/short + probability | 2 | 📋 planned | B | [AI placeholder](backend/src/ai/README.md) |
+| F10 Small MarketGPT Transformer: long/flat + probability (MVP) | 2 | 📋 planned | B | [AI placeholder](backend/src/ai/README.md) |
 | F11 LSTM | Stretch | ⏸ stretch | B | [AI placeholder](backend/src/ai/README.md) |
 | F12 Training ablations, three seeds | 2 | 📋 planned | C; B support | [Evaluation placeholder](backend/src/eval/README.md) |
 | F13 Calibration | 2 | 📋 planned | A; C support | [Evaluation placeholder](backend/src/eval/README.md) |
@@ -229,6 +229,12 @@ synthetic spread and may lie outside that range.** Spread is not an observed quo
 commissions are separate cash flows. Limit orders still respect their limit.
 No execution-price clamping was introduced during extraction.
 
+**Fill-time affordability (2026-11-17, all sessions):** a cash-instrument opening
+buy that the account cannot pay for at its executable price plus fees is now
+rejected at fill time (`status = rejected`, `rejection_reason = INSUFFICIENT_CASH`)
+with no fill, cash or position change; previously it could leave negative cash.
+Exits and futures are unchanged. See [fill rules](docs/fill_logic.md#fill-time-affordability-fill-time-cash-check-v1).
+
 Precommitted protection on a market entry can execute on the entry bar,
 conservatively stop-first. Protection on limit/stop entries starts on a later bar.
 Completion cancels pending orders but does not liquidate open positions.
@@ -264,7 +270,7 @@ milestone. They do not certify the planned models or live explanation pipeline.
 | No API, model, tokenizer or explanation may use bars after the current index during a replay decision | Replay subset ✅: `test_api_never_returns_future_bars`, `test_chart_data_truncated_at_current_bar`, `test_order_cannot_reference_future_bar`, `test_risk_metrics_exclude_future_data` in [anti-lookahead tests](backend/tests/test_no_lookahead.py); `test_full_history_endpoint_is_not_exposed` in [market tests](backend/tests/test_routes_market.py). Model/tokenizer/explanation boundary: 📋 test planned. |
 | Chronological train/validation/test split with a gap; test scenarios used once, at the end | Split ✅: dates in [split.json](backend/config/split.json). Each gap holds at least `label_horizon + embargo` bars; train/validation examples keep their whole window (look-back plus label) inside their set; test decisions may use pre-test bars as warm-up but are scored only from `test_start`. Rationale in [temporal integrity](docs/anti_lookahead.md#trainvalidationtest-split-f2), tests in [test_split.py](backend/tests/test_split.py). Single use of test scenarios: 📋 planned with F4/F7. |
 | Tokenizer bins and normalization fitted on training data only | 📋 test planned |
-| Blind observations expose no ticker, date or real price level | 📋 test planned; anonymizer not implemented |
+| Blind observations expose no ticker, date or real price level | Observation builder ✅: field, date-shift, price-scale and future-perturbation tests in [test_anonymizer.py](backend/tests/test_anonymizer.py); reduces identity cues, does not guarantee a period is unrecognisable. Player wiring and blind API: 📋 planned |
 | Code measures reasons, LLM phrases facts, validator checks output, template is fallback | 📋 test planned; F16 not implemented |
 | Never commit market data, databases or model checkpoints | Exclusions in [.gitignore](.gitignore); repository-content enforcement: 📋 test planned. Ignore rules are not proof against forced additions. |
 | Never weaken or skip tests; never lower the 85% coverage gate | Gate in [pyproject.toml](backend/pyproject.toml), run by [CI](.github/workflows/ci.yml); review protects test strength, automated anti-weakening check 📋 planned |
@@ -281,7 +287,7 @@ marketgpt-blind-replay/
     workflows/      backend, frontend and E2E CI
   backend/          Python manifest, runtime lock and Alembic config
     alembic/        fresh baseline and migration environment
-    config/         split boundaries (F2), no market data
+    config/         split boundaries (F2), scenario rules and frozen manifests (F4), no market data
     src/            application and future-work placeholders
     tests/          synthetic regression tests
   frontend/         Next.js manifest, lock and tooling configuration
@@ -304,9 +310,9 @@ Root files: [README.md](README.md), [PROVENANCE.md](PROVENANCE.md),
 | [core/](backend/src/core) | Deterministic fill, P&L and risk functions |
 | [models/](backend/src/models) | Seven-table ORM |
 | [schemas/](backend/src/schemas) | Request/response contracts |
-| [ai/](backend/src/ai/README.md) | 📋 models, attribution, explainer; README-only placeholder |
-| [data/](backend/src/data/README.md) | F1 download pipeline ✅, F2 split ✅; 📋 anonymizer; not a dataset store |
-| [eval/](backend/src/eval/README.md) | 📋 benchmark runner; README-only placeholder |
+| [ai/](backend/src/ai/README.md) | F5 player interface ✅ (binary long/flat); 📋 baselines, models, attribution, explainer |
+| [data/](backend/src/data/README.md) | F1 download pipeline ✅, F2 split ✅, F4 scenarios ✅, F3 observation builder ✅; not a dataset store |
+| [eval/](backend/src/eval/README.md) | F5 execution adapter ✅; 📋 benchmark runner |
 
 ## Data policy
 
@@ -336,9 +342,13 @@ Root files: [README.md](README.md), [PROVENANCE.md](PROVENANCE.md),
   or the F2 gap checks aborts the run and leaves previous data untouched.
 - F2/F3 must prevent train/test contamination and anonymize observations without
   losing accounting metadata, including futures treatment and contract multiplier.
+- **Blocker for real-data benchmark results:** observations use adjusted returns
+  while replay accounting uses raw OHLC without distribution cash flows; an explicit
+  split/distribution policy must be approved and tested first
+  ([details](docs/benchmark.md#blocker-for-real-data-benchmark-results-corporate-actions)).
 - Split dates, gaps and embargo are set in [split.json](backend/config/split.json).
-  Benchmark scenarios remain TBD; approximately 20 scenarios is a target, not a
-  claim about existing data.
+  Benchmark scenarios are fixed calendar half-years for SPY and IEF
+  ([rules and manifests](docs/benchmark.md)); the test manifest is sealed.
 
 ## Database
 
@@ -370,9 +380,9 @@ All model work below is 📋 planned except explicitly marked stretch work.
 | --- | --- |
 | F6 baselines | Buy-and-hold, moving-average crossover and MLP from scratch; same scenarios/execution rules |
 | F9 tokenizer | Approximately 32 return bins; fit bins/normalization on training data only |
-| F10 MarketGPT | Small Transformer trained on past returns; long/flat/short plus probability; probability semantics and sizing TBD |
+| F10 MarketGPT | Small Transformer trained on past returns; binary long/flat plus probability for the MVP (short is a later extension; no short probability is fabricated); sizing per [benchmark decisions](docs/benchmark.md#recorded-decisions-for-later-stages-not-implemented) |
 | F12 ablations | SGD vs Adam, warmup/schedule, LayerNorm, dropout, weight decay and model size; at least four ablations, three seeds each |
-| F13 calibration | Compare predicted confidence with measured outcomes; calibration plot and exact protocol TBD |
+| F13 calibration | Compare predicted long-class confidence with measured outcomes (binary long/flat); calibration plot and exact protocol TBD |
 | F15 memory-leak experiment | Blind versus dated LLM observations with bootstrap confidence intervals; only after Level 2 |
 | F11 and other extensions | ⏸ LSTM, attention maps, LoRA-tuned small explainer and Docker |
 
@@ -604,12 +614,15 @@ PR checklist:
 2. Compare simple baselines and a small return-trained Transformer fairly.
 3. Explain decisions from verified facts; honest negative results count as success.
 
-**Current state:** replay/accounting/upload, the F1 download pipeline, F2 split and
+**Current state:** replay/accounting/upload, the F1 download pipeline, F2 split,
+F4 frozen scenario manifests, the F3 blind-observation builder and
 the first research-cockpit milestone exist (market data is local-only, never in git).
 The UI has three research pages, explicit demo mode and validated browser-memory
-imports; real integration currently reads instrument summaries. Anonymizer, AI
-players, models, benchmark runner, attribution and live explanation generation
-do not exist. Saved/synthetic explanation UI is not F16 completion. Raw OHLC drives fills;
+imports; real integration currently reads instrument summaries. The F5 player
+interface and execution adapter exist; baseline players, models, benchmark runner,
+attribution and live explanation generation do not; the MVP prediction task is
+binary long/flat.
+Saved/synthetic explanation UI is not F16 completion. Raw OHLC drives fills;
 `adjusted_close` is only for returns. README-only folders are not implementations.
 Treat this README as the project contract, then inspect code.
 

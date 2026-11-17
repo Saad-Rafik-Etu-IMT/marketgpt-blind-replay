@@ -99,6 +99,37 @@ Two rules in this module enforce §5 invariants:
 
 Tests for both live in `tests/test_no_lookahead.py`.
 
+## Fill-time affordability (`fill-time-cash-check-v1`)
+
+**Behaviour change (2026-11-17), applies to every session including manual
+Replay:** previously a buy could fill even when the next open made it
+unaffordable, leaving negative cash. Now the broker rejects it.
+
+- **Scope:** buy orders on cash instruments (no `=F` suffix) that are neither
+  reduce-only nor protective children. Exits, protective SL/TP children and
+  futures are not checked; futures margin and short-sale accounting are
+  unchanged and out of scope.
+- **When:** at fill time, after the final executable price is known
+  (reference price, synthetic half-spread and limit handling), before any fill
+  row, cash, position or protective child is created. Timing is unchanged: the
+  check only runs when an order would already fill (N+1 or later).
+- **Rule:** `cash - quantity × executable_price × multiplier - quantity × fee_per_unit`
+  must be `>= 0`, using the same arithmetic as the cash update
+  (`core.fill_logic.cash_after_cash_buy`). Exactly zero remaining cash fills.
+  Cash is the latest snapshot, which already includes fills earlier in the same
+  bar pass (e.g. a stop that fired first).
+- **On failure:** status `rejected`, `rejection_reason = "INSUFFICIENT_CASH"`
+  (stable code, exposed on `OrderRead` and stored by migration 0002). No fill,
+  no cash or position change, no protective children; no resizing, no partial
+  fill, and a market order is never converted to a limit order. The rejection is
+  terminal; other eligible orders on the same bar are still processed.
+- **Supported assumptions:** no borrowing or leverage on cash instruments; exit
+  proceeds are non-negative when `fee_per_unit` is zero (the benchmark profile).
+  With non-zero per-unit fees, a sell whose fee exceeds its proceeds can still
+  reduce cash below zero; that configuration is not a supported benchmark path.
+
+Tests: [test_fill_affordability.py](../backend/tests/test_fill_affordability.py).
+
 ## OCO (one-cancels-other)
 
 When a parent order fills with both `stop_loss` and `take_profit` set:

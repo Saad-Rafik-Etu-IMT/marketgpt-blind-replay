@@ -57,8 +57,9 @@ Defaults: `lookback = 64`, `label_horizon = 1`, `embargo = 5` bars.
   `lookback < 1`, `label_horizon < 1` and `embargo < 0`.
 
 Evidence: [test_split.py](../backend/tests/test_split.py), with synthetic weekday
-calendars only (no network, no market data). Not yet covered: F1 data loading,
-fitting the tokenizer or normalization on train only, and test scenarios.
+calendars only (no network, no market data). Not yet covered: F1 data loading and
+fitting the tokenizer or normalization on train only. Benchmark scenarios are
+covered by [test_scenarios.py](../backend/tests/test_scenarios.py).
 
 ## Evidence and limits
 
@@ -67,9 +68,11 @@ are retained unchanged. Additional chronology, costs and protection regressions
 remain in [test_financial_integrity.py](../backend/tests/test_financial_integrity.py).
 
 These tests do not certify every possible transformation or imported series.
-Instrument names and dates remain visible; blind-session anonymization is future
-work. AI players must be forward-only and receive an explicitly bounded
-observation interface when implemented.
+Instrument names and dates remain visible in the API; it is not a blind-session
+API. The F3 [blind observation](benchmark.md#f3-blind-observation) builder and
+F4 [scenario warm-up policy](benchmark.md#warm-up-policy-follows-f2-no-new-rule)
+exist, but no AI player uses them yet. AI players must be forward-only and receive
+that explicitly bounded observation interface when implemented.
 
 This is local educational temporal integrity, not anti-cheat protection. A local
 user can inspect their own database. Adjusted data, contract rolls and known
