@@ -63,6 +63,7 @@ from step1_returns import CSV_PATH, load_returns  # noqa: E402
 from step2_windows import make_xy  # noqa: E402
 from step3_normalize import fit_normalizer, normalize  # noqa: E402
 from step5_forward import init_mlp, mlp_forward  # noqa: E402
+
 from src.data.split import build_examples, load_split_config  # noqa: E402
 
 # log(0) is minus infinity, which would break all the arithmetic. Clipping

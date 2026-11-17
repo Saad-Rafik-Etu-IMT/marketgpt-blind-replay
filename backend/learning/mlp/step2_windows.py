@@ -56,6 +56,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1]))
 
 from step1_returns import CSV_PATH, load_returns  # noqa: E402
+
 from src.data.split import build_examples, load_split_config  # noqa: E402
 
 
@@ -123,7 +124,7 @@ if __name__ == "__main__":
 
     # The window of every example must END on its decision day t...
     for X, days in ((X_train, examples.train), (X_val, examples.validation)):
-        for row, t in zip(X, days):
+        for row, t in zip(X, days, strict=True):
             assert row[-1] == values[t], (
                 f"window for day {t} does not end on day t: wrong slice bounds"
             )

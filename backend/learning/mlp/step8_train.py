@@ -59,6 +59,7 @@ from step3_normalize import fit_normalizer, normalize  # noqa: E402
 from step5_forward import init_mlp, mlp_forward  # noqa: E402
 from step6_loss import cross_entropy  # noqa: E402
 from step7_backprop import mlp_backward  # noqa: E402
+
 from src.data.split import build_examples, load_split_config  # noqa: E402
 
 # Training settings ("hyperparameters"). They are chosen by looking at the
