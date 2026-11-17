@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "case_study": "Two-asset case study: one broad US equity ETF and one intermediate US Treasury ETF, predeclared for asset-class diversity before any returns were inspected. Model training later uses the configured 15-ETF universe.",
+  "instruments": ["SPY", "IEF"],
+  "window": "calendar_half_year",
+  "min_scoring_bars": 100,
+  "max_calendar_gap_days": 7,
+  "sets": {
+    "development": {
+      "split": "validation",
+      "warmup_policy": "inside_split"
+    },
+    "test": {
+      "split": "test",
+      "warmup_policy": "pre_split_context_allowed"
+    }
+  }
+}

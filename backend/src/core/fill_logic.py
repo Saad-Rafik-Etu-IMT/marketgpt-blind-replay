@@ -142,3 +142,25 @@ def _validated(price: float, bar: OHLCVBar) -> FillDecision:
             "logic error in fill rules"
         )
     return FillDecision(should_fill=True, fill_price=price)
+
+
+# --- Fill-time affordability (execution policy) ----------------------------
+
+# Recorded in benchmark run metadata. Bump when fill/affordability rules change.
+EXECUTION_POLICY_VERSION = "fill-time-cash-check-v1"
+
+
+def cash_after_cash_buy(
+    cash: float, quantity: int, price: float, multiplier: float, fee: float
+) -> float:
+    """Cash left after a cash-instrument buy fill.
+
+    Mirrors ``portfolio_service.record_fill`` operation by operation (same
+    float rounding), so "affordable" means the recorded cash would be >= 0.
+    ``price`` is the final executable price (spread included); ``fee`` is the
+    total commission for the fill.
+    """
+    notional = quantity * price * multiplier
+    cash_delta = -notional
+    cash_delta -= fee
+    return cash + cash_delta

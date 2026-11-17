@@ -221,6 +221,7 @@ def _to_read(orm: OrderORM) -> OrderRead:
         stop_loss=orm.stop_loss,
         take_profit=orm.take_profit,
         status=orm.status,  # type: ignore[arg-type]
+        rejection_reason=orm.rejection_reason,  # type: ignore[arg-type]
         submitted_at_bar=orm.submitted_at_bar,
         submitted_at=orm.submitted_at,
         rationale=orm.rationale,

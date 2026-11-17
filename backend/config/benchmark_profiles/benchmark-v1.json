@@ -1,0 +1,14 @@
+{
+  "profile_id": "benchmark-v1",
+  "status": "provisional",
+  "note": "Experimental benchmark settings shared by every player; not realistic cost or risk estimates and not a safety guarantee.",
+  "initial_cash": 100000.0,
+  "fee_per_unit": 0.0,
+  "spread_bps": 1.0,
+  "risk_limits": {
+    "max_drawdown_pct": 100.0,
+    "max_risk_per_trade_pct": 100.0,
+    "max_open_positions": 1,
+    "max_exposure_pct": 100.0
+  }
+}
