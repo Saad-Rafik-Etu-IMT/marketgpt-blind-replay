@@ -1,0 +1,15 @@
+{
+  "profile_id": "benchmark-v2",
+  "status": "provisional",
+  "note": "benchmark-v1 costs and risk limits plus a cash reserve applied before cost-aware all-in sizing. Experimental settings shared by every player; not realistic cost or risk estimates, not a safety or execution guarantee.",
+  "initial_cash": 100000.0,
+  "fee_per_unit": 0.0,
+  "spread_bps": 1.0,
+  "cash_reserve_fraction": 0.005,
+  "risk_limits": {
+    "max_drawdown_pct": 100.0,
+    "max_risk_per_trade_pct": 100.0,
+    "max_open_positions": 1,
+    "max_exposure_pct": 100.0
+  }
+}
