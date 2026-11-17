@@ -39,6 +39,8 @@ class OrderORM(Base):
 
     # pending | filled | partially_filled | cancelled | rejected
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    # Machine-readable code set only when status == "rejected" (e.g. INSUFFICIENT_CASH).
+    rejection_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     reduce_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     submitted_at_bar: Mapped[int] = mapped_column(Integer, nullable=False)

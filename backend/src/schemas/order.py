@@ -10,6 +10,9 @@ OrderSide = Literal["buy", "sell"]
 OrderType = Literal["market", "limit", "stop"]
 OrderStatus = Literal["pending", "filled", "partially_filled", "cancelled", "rejected"]
 InstrumentKind = Literal["underlying"]
+# Stable machine-readable codes for orders the broker rejects at fill time.
+RejectionReason = Literal["INSUFFICIENT_CASH"]
+INSUFFICIENT_CASH: RejectionReason = "INSUFFICIENT_CASH"
 
 
 class CreateOrderRequest(BaseModel):
@@ -49,6 +52,7 @@ class OrderRead(BaseModel):
     stop_loss: float | None = None
     take_profit: float | None = None
     status: OrderStatus
+    rejection_reason: RejectionReason | None = None
     submitted_at_bar: int
     submitted_at: datetime
     rationale: str

@@ -17,12 +17,13 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.fill_logic import OrderInputs, decide_fill
+from src.core.fill_logic import OrderInputs, cash_after_cash_buy, decide_fill
 from src.models.fill import FillORM
 from src.models.market import OHLCVBarORM
 from src.models.order import OrderORM
 from src.models.session import ReplaySessionORM
 from src.schemas.market import OHLCVBar
+from src.schemas.order import INSUFFICIENT_CASH
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +64,13 @@ def process_pending_orders(
     )
 
     new_fills: list[FillORM] = []
+    rejected = False
     pending.sort(
         key=lambda o: (0 if o.order_type == "stop" else 1, o.submitted_at, o.order_id)
     )
     for order in pending:
         fill = _try_fill(db, order, current_bar, current_index)
+        rejected = rejected or order.status == "rejected"
         if fill is not None:
             new_fills.append(fill)
             logger.info(
@@ -80,7 +83,7 @@ def process_pending_orders(
                 current_index,
             )
 
-    if new_fills and commit:
+    if (new_fills or rejected) and commit:
         db.commit()
     return new_fills
 
@@ -150,6 +153,31 @@ def _try_fill(
     slippage += executable - fill_price
     fill_price = max(0.0, executable)
 
+    fee = order.quantity * session_orm.fee_per_unit
+    if _requires_cash_check(order, session_orm):
+        from src.services.portfolio_service import _latest_cash
+
+        # Latest snapshot cash already includes earlier fills in this bar pass.
+        cash = _latest_cash(db, order.session_id, session_orm.initial_cash)
+        remaining = cash_after_cash_buy(
+            cash, order.quantity, fill_price, session_orm.multiplier, fee
+        )
+        if remaining < 0:
+            # Atomic rejection: no fill, cash, position or protective children.
+            order.status = "rejected"
+            order.rejection_reason = INSUFFICIENT_CASH
+            logger.warning(
+                "order rejected at fill: session=%s order=%s reason=%s "
+                "required=%.4f available=%.4f bar=%d",
+                order.session_id,
+                order.order_id,
+                INSUFFICIENT_CASH,
+                cash - remaining,
+                cash,
+                current_bar,
+            )
+            return None
+
     fill = FillORM(
         fill_id=str(uuid4()),
         order_id=order.order_id,
@@ -157,7 +185,7 @@ def _try_fill(
         fill_quantity=order.quantity,
         fill_bar=current_bar,
         slippage=slippage,
-        fee=order.quantity * session_orm.fee_per_unit,
+        fee=fee,
         timestamp=datetime.now(timezone.utc),
     )
     db.add(fill)
@@ -195,6 +223,20 @@ def _try_fill(
         _cancel_oco_sibling(db, order)
 
     return fill
+
+
+def _requires_cash_check(order: OrderORM, session: ReplaySessionORM) -> bool:
+    """Opening/increasing cash-instrument buys only.
+
+    Exits (reduce-only orders and protective children) are never blocked;
+    futures margin and short-sale accounting are outside this check.
+    """
+    return (
+        order.side == "buy"
+        and not order.reduce_only
+        and order.parent_order_id is None
+        and not session.instrument.endswith("=F")
+    )
 
 
 def _cancel_oco_sibling(db: Session, order: OrderORM) -> None:
