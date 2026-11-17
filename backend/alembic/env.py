@@ -14,7 +14,7 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from src.config import get_settings
-from src.database import Base
+from src.database import Base, _ensure_sqlite_path_exists
 from src.models import fill as _fill  # noqa: F401
 
 # Import every ORM module so Base.metadata is fully populated before
@@ -55,6 +55,11 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode against a live connection."""
+    # Like the app's build_engine: a fresh checkout has no data/db/ folder, and
+    # SQLite cannot create a file inside a missing directory.
+    url = config.get_main_option("sqlalchemy.url") or ""
+    if url.startswith("sqlite") and ":memory:" not in url:
+        _ensure_sqlite_path_exists(url)
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

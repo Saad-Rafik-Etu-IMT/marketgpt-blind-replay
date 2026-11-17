@@ -38,3 +38,22 @@ def test_fresh_db_is_migrated_from_base(tmp_path: Path) -> None:
             ).scalar_one() == 1
     finally:
         engine.dispose()
+
+
+def test_migration_creates_missing_sqlite_directory(tmp_path: Path) -> None:
+    """A fresh checkout has no data/db/ folder; `alembic upgrade head` must still work."""
+    from alembic import command
+
+    target = tmp_path / "missing" / "db" / "fresh.sqlite"
+    cfg = Config(str(_BACKEND_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(_BACKEND_DIR / "alembic"))
+    cfg.set_main_option("sqlalchemy.url", f"sqlite:///{target}")
+
+    command.upgrade(cfg, "head")
+
+    engine = build_engine(f"sqlite:///{target}")
+    try:
+        with engine.connect() as conn:
+            assert "orders" in inspect(conn).get_table_names()
+    finally:
+        engine.dispose()
