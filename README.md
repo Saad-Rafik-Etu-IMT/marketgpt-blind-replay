@@ -288,6 +288,7 @@ marketgpt-blind-replay/
   backend/          Python manifest, runtime lock and Alembic config
     alembic/        fresh baseline and migration environment
     config/         split boundaries (F2), scenario rules and frozen manifests (F4), no market data
+    learning/       W1 MLP learning sprint (step-by-step scripts, not product code)
     src/            application and future-work placeholders
     tests/          synthetic regression tests
   frontend/         Next.js manifest, lock and tooling configuration
@@ -559,6 +560,12 @@ Everything in this roadmap is 📋 planned unless the status table says otherwis
 
 Approximately six weeks is a planning assumption; calendar dates are TBD.
 Teacher approval of the project (W1) has been obtained.
+W1 is ✅ complete: split tests pass, and the common MLP learning sprint lives in
+[backend/learning/mlp/](backend/learning/mlp): nine commented, self-checking steps
+from returns to a from-scratch NumPy MLP with verified backpropagation. On
+validation (five seeds) it shows no measurable edge over "always predict up".
+This is learning material, not the F6 baseline, which remains 📋 planned in
+`backend/src/ai/` with tests.
 
 | Week | Deliverables | Go/no-go |
 | --- | --- | --- |
@@ -615,7 +622,8 @@ PR checklist:
 3. Explain decisions from verified facts; honest negative results count as success.
 
 **Current state:** replay/accounting/upload, the F1 download pipeline, F2 split,
-F4 frozen scenario manifests, the F3 blind-observation builder and
+F4 frozen scenario manifests, the F3 blind-observation builder,
+the W1 MLP learning scripts (`backend/learning/mlp/`, not F6) and
 the first research-cockpit milestone exist (market data is local-only, never in git).
 The UI has three research pages, explicit demo mode and validated browser-memory
 imports; real integration currently reads instrument summaries. The F5 player
