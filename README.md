@@ -12,6 +12,30 @@ natural-language explanation generation are planned, not implemented
 
 **Educational simulation only: no real money, live broker or investment advice.**
 
+## Blind comparison cockpit
+
+Open **Blind comparison** in the navigation and choose **Open trained synthetic demo**.
+Choose a baseline, inspect the relative price path and tokenized inputs, vote, then reveal
+the next return and recorded broker actions. Expand validation results for calibration,
+macro-F1, simulated returns, drawdown and paired accuracy uncertainty. The example
+was generated offline with the learning MLP on synthetic OHLC data.
+
+From `backend/`, with the project environment active, export your local SPY validation run:
+
+```bash
+python learning/mlp/export_comparison.py --csv data/raw/yfinance/SPY.csv --seed 0 --out data/comparisons/spy.json
+```
+
+Import the JSON on the comparison page. The companion NPZ holds the best epoch's
+weights and normalization statistics. Use `--synthetic` in place of `--csv PATH`
+to reproduce the offline example. The comparison uses 64 adjusted-close log
+returns, validation-only selection, and independent benchmark-v2 accounts.
+The 95% interval uses 1,000 paired circular bootstrap samples in 10-decision
+blocks, conditional on this seed and validation period. Raw-price simulated
+equity omits corporate actions. This explorer uses the learning MLP and its own
+binary validation format, independently of the legacy research bundle v1.
+The sealed test benchmark, Transformer and LLM remain future work.
+
 ## Learning objectives
 
 The project must demonstrate, in this order of importance:

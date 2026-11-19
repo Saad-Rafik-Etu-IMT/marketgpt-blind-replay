@@ -27,7 +27,7 @@ export function Experiments() {
   const params = useSearchParams();
   const requested = params.get("run");
   const run = bundle?.runs.find(r => r.id === requested) ?? (!requested ? bundle?.runs[0] : undefined);
-  if (!bundle) return <div className="research-stack"><Empty title="No research runs loaded">Training and evaluation exporters are not implemented. Import a version-1 research bundle or explicitly load the synthetic demo to explore the connected workflow.</Empty><Inventory /></div>;
+  if (!bundle) return <div className="research-stack"><Empty title="No research runs loaded">Open the <Link href="/comparison">blind comparison</Link> to inspect a trained MLP and compare validation decisions. You can also import a version-1 research bundle here.</Empty><Inventory /></div>;
   return <div className="research-stack">
     {requested && !run && <SelectionError />}
     <section className="bench-panel"><div className="section-heading"><div><p className="eyebrow">01 / Experiment</p><h2>Run ledger</h2></div><span className="bench-badge">{bundle.runs.length} loaded</span></div>

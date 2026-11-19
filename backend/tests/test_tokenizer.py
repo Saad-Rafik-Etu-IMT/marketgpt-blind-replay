@@ -24,7 +24,7 @@ def test_fit_creates_expected_number_of_quantile_bins() -> None:
     assert tokenizer.is_fitted
     assert tokenizer.vocab_size == 32
     assert len(tokenizer.bin_edges) == 31
-    assert all(a < b for a, b in zip(tokenizer.bin_edges, tokenizer.bin_edges[1:]))
+    assert all(a < b for a, b in zip(tokenizer.bin_edges, tokenizer.bin_edges[1:], strict=False))
 
 
 def test_encode_preserves_single_sample_and_batch_shapes() -> None:

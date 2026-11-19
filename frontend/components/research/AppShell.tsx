@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useResearch } from "./ResearchProvider";
 
 const pages = [
+  { path: "/comparison", title: "Blind comparison", purpose: "Compare decisions on a shared validation period.", number: "↗" },
   { path: "/experiments", title: "Experiments", purpose: "Understand the run before interpreting the result.", number: "01" },
   { path: "/inspector", title: "Inspector", purpose: "Trace one prediction back to its inputs and evidence.", number: "02" },
   { path: "/evaluation", title: "Evaluation", purpose: "Separate model errors from explanation quality.", number: "03" },
@@ -14,7 +15,7 @@ const pages = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const page = pages.find(p => p.path === pathname) ?? pages[0];
+  const page = pages.find(p => p.path === pathname) ?? pages[1];
   const replay = pathname === "/replay";
   const { bundle, mode, useDemo, useReal, importFile, loading, error } = useResearch();
   const [theme, setTheme] = useState("light");
@@ -38,7 +39,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem("blind-replay.theme", next); }
     catch { setThemeError("Theme preference could not be saved."); }
   }
-  const synthetic = !replay && bundle?.origin === "synthetic";
+  const comparison = pathname === "/comparison";
+  const synthetic = !comparison && !replay && bundle?.origin === "synthetic";
   return (
     <div className="bench-shell">
       <a href="#main-content" className="skip-link">Skip to content</a>
@@ -53,9 +55,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="bench-workspace">
         <header className="bench-header">
           <div><p className="eyebrow">AI Research Cockpit</p><h1>{page.title}</h1><p className="muted">{page.purpose}</p></div>
-          <span className="bench-badge" role="status">{replay ? "Real · Replay API" : synthetic ? "Synthetic Demo" : bundle ? "Real · Imported artifacts" : "No Data · Real mode"}</span>
+          <span className="bench-badge" role="status">{comparison ? "Validation lab" : replay ? "Real · Replay API" : synthetic ? "Synthetic Demo" : bundle ? "Real · Imported artifacts" : "No Data · Real mode"}</span>
         </header>
-        {!replay && <section aria-label="Research data source" className="source-bar">
+        {!comparison && !replay && <section aria-label="Research data source" className="source-bar">
           <div className="bench-actions">
             <button disabled={!ready} className="bench-button" onClick={useReal} aria-pressed={mode === "real"}>Real mode</button>
             <button disabled={!ready} className="bench-button" onClick={useDemo} aria-pressed={mode === "demo"}>Load synthetic demo</button>
@@ -69,9 +71,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </section>}
         {synthetic && <p role="status" className="bench-notice">Synthetic demo data — not experimental results. Curves, predictions and explanation are illustrative; no model was trained or called.</p>}
         {themeError && <p role="alert" className="bench-notice">{themeError}</p>}
-        {!replay && error && <p role="alert" aria-label="Artifact import error" className="bench-error">{error}</p>}
+        {!comparison && !replay && error && <p role="alert" aria-label="Artifact import error" className="bench-error">{error}</p>}
         <main id="main-content" tabIndex={-1} className="bench-main">
-          {!replay && loading ? <p role="status" className="bench-panel">Validating artifact…</p> : children}
+          {!comparison && !replay && loading ? <p role="status" className="bench-panel">Validating artifact…</p> : children}
         </main>
         <footer className="bench-footer">Evidence first. Uncertainty visible. Research artifacts are separate from replay observations.</footer>
       </div>
