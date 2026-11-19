@@ -68,3 +68,5 @@ checkpoints/
 # Local comparison exports and NumPy checkpoints
 backend/data/comparisons/
 *.npz
+backend/data/studies/
+backend/data/e2e-studies-*/

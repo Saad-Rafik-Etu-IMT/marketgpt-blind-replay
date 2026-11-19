@@ -6,6 +6,7 @@ test suite can build fully isolated application instances. A module-level
 """
 
 import logging
+import os
 import time
 from collections.abc import Awaitable, Callable
 
@@ -17,11 +18,13 @@ from fastapi.responses import JSONResponse
 from src import __version__
 from src.api.errors import register_error_handlers
 from src.api.routes_health import router as health_router
+from src.api.routes_jury import router as jury_router
 from src.api.routes_market import router as market_router
 from src.api.routes_orders import router as orders_router
 from src.api.routes_portfolio import router as portfolio_router
 from src.api.routes_replay import router as replay_router
 from src.api.routes_risk import router as risk_router
+from src.api.routes_studies import router as studies_router
 from src.config import get_settings
 from src.logging_config import configure_logging
 
@@ -102,6 +105,11 @@ def create_app() -> FastAPI:
         return response
 
     # Every resource group is registered here under the /api prefix.
+    if os.getenv("MRTL_JURY_ONLY") == "1":
+        app.include_router(jury_router, prefix="/api")
+        return app
+
+    app.include_router(studies_router, prefix="/api")
     app.include_router(health_router, prefix="/api")
     app.include_router(market_router, prefix="/api")
     app.include_router(replay_router, prefix="/api")

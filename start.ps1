@@ -8,6 +8,7 @@
 [CmdletBinding()]
 param(
     [switch]$Install,
+    [switch]$Research,
     [int]$BackendPort = 8000,
     [int]$FrontendPort = 3000
 )
@@ -20,6 +21,7 @@ $python = Join-Path $root '.venv\Scripts\python.exe'
 $npm = Get-Command 'npm.cmd' -ErrorAction SilentlyContinue
 if (-not $npm) { throw 'npm was not found. Install Node.js >= 18.' }
 
+if ($Research -and -not $Install) { throw "Use -Research with -Install to add the CPU Transformer runtime." }
 if ($Install) {
     if (-not (Test-Path -LiteralPath $python)) {
         $launcher = Get-Command 'python' -ErrorAction SilentlyContinue
@@ -34,6 +36,10 @@ if ($Install) {
     try {
         & $python -m pip install -c requirements.lock -e '.[dev]'
         if ($LASTEXITCODE -ne 0) { throw 'Backend dependency installation failed.' }
+        if ($Research) {
+            & $python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+            if ($LASTEXITCODE -ne 0) { throw 'CPU PyTorch installation failed.' }
+        }
     } finally { Pop-Location }
     Push-Location $frontend
     try {
