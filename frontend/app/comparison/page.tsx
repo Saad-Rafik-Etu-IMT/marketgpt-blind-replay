@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import fixture from "@/lib/research/comparison-demo.json";
 import { parseComparison, type Comparison } from "@/lib/research/comparison";
+import { SeriesPlot } from "@/components/research/SeriesPlot";
 import { TrainingCurve } from "@/components/research/TrainingCurve";
 
 const pct = (x: number) => (100 * x).toFixed(1) + "%";
@@ -36,11 +37,6 @@ function Review({ run }: { run: Comparison }) {
   const window = run.returns.slice(index, index + 64);
   const prices = [100];
   for (const r of window) prices.push(prices[prices.length - 1] * Math.exp(r));
-  const low = Math.min(...prices),
-    span = Math.max(...prices) - low || 1;
-  const points = prices
-    .map((v, i) => [8 + i * 8, 102 - (94 * (v - low)) / span].join(","))
-    .join(" ");
   const n = run.cases.length;
   const alwaysUp = run.cases.filter((x) => x.next > 0).length / n;
   return (
@@ -152,19 +148,7 @@ function Review({ run }: { run: Comparison }) {
             Seeded case
           </button>
         </div>
-        <svg
-          viewBox="0 0 528 112"
-          style={{ width: "100%", maxHeight: 200 }}
-          role="img"
-          aria-label="Relative adjusted closes through the decision, starting at 100"
-        >
-          <polyline
-            points={points}
-            fill="none"
-            stroke="var(--accent)"
-            strokeWidth="2"
-          />
-        </svg>
+        <SeriesPlot values={prices} label="Relative adjusted closes through the decision, starting at 100" startLabel="t − 64" endLabel="Decision · t" />
         <details>
           <summary>Inspect the 64 inputs and train-fitted tokens</summary>
           <p>
@@ -367,7 +351,7 @@ export default function ComparisonPage() {
       <section className="bench-panel">
         <div className="bench-actions">
           <button
-            className="bench-button"
+            className="bench-button primary-action"
             onClick={() => {
               version.current++;
               setError("");

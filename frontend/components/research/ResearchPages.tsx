@@ -1,5 +1,6 @@
 "use client";
 
+import { ExperimentStart } from "./ExperimentStart";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +9,7 @@ import { useResearch } from "./ResearchProvider";
 import { TrainingCurve } from "./TrainingCurve";
 
 function Empty({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="bench-panel empty-state"><p className="eyebrow">Integration boundary</p><h2>{title}</h2><p className="muted">{children}</p></section>;
+  return <section className="bench-panel empty-state"><h2>{title}</h2><p className="muted">{children}</p></section>;
 }
 function SelectionError() {
   return <p className="bench-notice" role="alert">Selection unavailable or incompatible with this bundle. Choose a run or sample below. Shared links require the same artifact to be loaded; imports disappear on reload.</p>;
@@ -27,10 +28,10 @@ export function Experiments() {
   const params = useSearchParams();
   const requested = params.get("run");
   const run = bundle?.runs.find(r => r.id === requested) ?? (!requested ? bundle?.runs[0] : undefined);
-  if (!bundle) return <div className="research-stack"><Empty title="No research runs loaded">Open <Link href="/studies">Research studies</Link> to train and reopen a saved run, or the <Link href="/comparison">blind comparison</Link> to inspect a trained MLP and compare validation decisions. You can also import a version-1 research bundle here.</Empty><Inventory /></div>;
+  if (!bundle) return <div className="research-stack"><ExperimentStart /><Inventory /></div>;
   return <div className="research-stack">
     {requested && !run && <SelectionError />}
-    <section className="bench-panel"><div className="section-heading"><div><p className="eyebrow">01 / Experiment</p><h2>Run ledger</h2></div><span className="bench-badge">{bundle.runs.length} loaded</span></div>
+    <section className="bench-panel"><div className="section-heading"><div><p className="eyebrow">Experiment</p><h2>Run ledger</h2></div><span className="bench-badge">{bundle.runs.length} loaded</span></div>
       <div className="table-scroll" tabIndex={0} role="region" aria-label="Research runs"><table><thead><tr><th>Run / model</th><th>Dataset / split</th><th>Seed</th><th>Checkpoint</th><th>Inspect</th></tr></thead><tbody>
         {bundle.runs.map(r => <tr key={r.id}><td><Link href={`/experiments?run=${encodeURIComponent(r.id)}`}>{r.id}</Link><small>{r.model}</small></td><td>{r.dataset}<small>{r.split}</small></td><td>{r.seed}</td><td>{r.checkpoint}</td><td><Link href={`/inspector?run=${encodeURIComponent(r.id)}`}>Inspect prediction →</Link></td></tr>)}
       </tbody></table></div>
@@ -50,7 +51,7 @@ export function Inspector() {
   if (!bundle) return <Empty title="No saved prediction loaded">The backend has no model prediction or explanation service. Replay bars are not substituted for actual model inputs. Import a research bundle or explicitly load the synthetic demo.</Empty>;
   const explanation = sample?.explanation;
   return <div className="research-stack">
-    <section className="bench-panel"><p className="eyebrow">02 / Decision-time snapshot</p><h2>Saved predictions</h2><div className="bench-actions">{samples.map(s => <Link className="bench-button" key={s.id} href={`/inspector?run=${encodeURIComponent(s.runId)}&sample=${encodeURIComponent(s.id)}`} aria-current={sample?.id === s.id ? "true" : undefined}>{s.id}</Link>)}</div>
+    <section className="bench-panel"><p className="eyebrow">Decision-time snapshot</p><h2>Saved predictions</h2><div className="bench-actions">{samples.map(s => <Link className="bench-button" key={s.id} href={`/inspector?run=${encodeURIComponent(s.runId)}&sample=${encodeURIComponent(s.id)}`} aria-current={sample?.id === s.id ? "true" : undefined}>{s.id}</Link>)}</div>
       {(sampleId && !sample || runId && !bundle.runs.some(r => r.id === runId)) && <SelectionError />}
       {!samples.length && <p>No matching samples. <Link href="/experiments">Choose a loaded run</Link>.</p>}
     </section>
@@ -90,7 +91,7 @@ export function Evaluation() {
   const report = reportId ? reports.find(r => r.id === reportId) : reports[0];
   if (!bundle) return <Empty title="No evaluation report loaded">Predictive evaluation, explanation assessment and machine-readable test reports are not exposed by the backend. No synthetic scores are substituted.</Empty>;
   return <div className="research-stack">
-    <section className="bench-panel"><p className="eyebrow">03 / Retrospective evaluation</p><h2>Saved reports</h2><div className="bench-actions">{reports.map(r => <Link className="bench-button" key={r.id} href={`/evaluation?run=${encodeURIComponent(r.runId)}&report=${encodeURIComponent(r.id)}`}>{r.id}</Link>)}</div>
+    <section className="bench-panel"><p className="eyebrow">Retrospective evaluation</p><h2>Saved reports</h2><div className="bench-actions">{reports.map(r => <Link className="bench-button" key={r.id} href={`/evaluation?run=${encodeURIComponent(r.runId)}&report=${encodeURIComponent(r.id)}`}>{r.id}</Link>)}</div>
       {(reportId && !report || runId && !bundle.runs.some(r => r.id === runId)) && <SelectionError />}
       {!reports.length && <p>No matching evaluation reports. <Link href="/experiments">Choose a run</Link>.</p>}
     </section>

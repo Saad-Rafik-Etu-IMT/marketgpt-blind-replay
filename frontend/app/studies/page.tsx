@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Decision, api, pct, Plot } from "@/components/research/StudyWidgets";
+import { Decision, api, pct } from "@/components/research/StudyWidgets";
+import { SeriesPlot } from "@/components/research/SeriesPlot";
 import { TrainingCurve } from "@/components/research/TrainingCurve";
 
 type State = { state: string; message: string; done: number; total: number };
@@ -105,7 +106,7 @@ function Launcher({
   return (
     <details className="bench-panel" open={!inv.studies.length}>
       <summary>New validation study</summary>
-      <div className="bench-actions">
+      <div className="study-controls">
         <label>
           Dataset{" "}
           <select value={source} onChange={(v) => s(v.target.value)}>
@@ -150,7 +151,7 @@ function Launcher({
             Include four ablations
           </label>
         )}
-        <button className="bench-button" disabled={busy} onClick={submit}>
+        <button className="bench-button primary-action" disabled={busy} onClick={submit}>
           Start training
         </button>
       </div>
@@ -441,7 +442,7 @@ export default function Studies() {
       {study.error && <p role="alert">{String(study.error)}</p>}
       {run && s && (
         <>
-          <nav aria-label="Study views" className="bench-actions">
+          <nav aria-label="Study views" className="study-nav">
             {tabs.map((x) => (
               <button
                 key={x}
@@ -533,7 +534,7 @@ export default function Studies() {
                 Training mean {r.normalization.mean.toPrecision(4)} · standard
                 deviation {r.normalization.std.toPrecision(4)}
               </p>
-              <Plot values={r.bins} label="Train-fitted quantile boundaries" />
+              <SeriesPlot values={r.bins} label="Train-fitted quantile boundaries" startLabel="Lowest boundary" endLabel="Highest boundary" />
               <details>
                 <summary>Reproduction identifiers</summary>
                 <p style={{ overflowWrap: "anywhere" }}>
@@ -624,11 +625,11 @@ export default function Studies() {
                   <summary>
                     {x.name} · return {pct(x.gain)} · max drawdown {pct(x.dd)}
                   </summary>
-                  <Plot values={x.equity} label="Marked equity" />
-                  <Plot values={drawdowns(x.equity)} label="Drawdown from running peak" />
-                  <Plot
+                  <SeriesPlot values={x.equity} label="Marked equity" />
+                  <SeriesPlot values={drawdowns(x.equity)} percent label="Drawdown from running peak" />
+                  <SeriesPlot
                     values={x.exposure}
-                    label="Fraction of equity exposed"
+                    percent label="Fraction of equity exposed"
                   />
                   <p>
                     Fees {x.fees.at(-1)?.toFixed(2)} · rejected decisions{" "}
