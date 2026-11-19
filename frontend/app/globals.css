@@ -130,6 +130,7 @@
 .window-future { width: 54px; display: grid; place-content: center; text-align: center; border: 1px dashed #a2c3b7; background: #183834; border-radius: 7px; font: 12px ui-monospace, monospace; }
 .window-future span { font-size: 25px; }
 .bench-panel { box-shadow: 0 2px 5px #102b2b08; }
+.bench-main > .bench-panel + .bench-panel { margin-top: 20px; }
 .bench-panel .bench-panel { box-shadow: none; margin-top: 16px; }
 .bench-panel thead { background: var(--bg); }
 .bench-panel td, .bench-panel dd, .bench-panel meter { font-variant-numeric: tabular-nums; }
