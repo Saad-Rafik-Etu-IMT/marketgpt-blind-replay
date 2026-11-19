@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { SeriesPlot } from "./SeriesPlot";
 import { API_BASE_URL } from "@/lib/constants";
 type Observation = {
   inputs: number[];
@@ -44,38 +45,6 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
     );
   }
   return res.json();
-}
-export function Plot({ values, label }: { values: number[]; label: string }) {
-  if (!values.length) return null;
-  const low = Math.min(...values),
-    high = Math.max(...values);
-  return (
-    <figure>
-      <figcaption>
-        {label} · {values[0].toFixed(3)} → {values.at(-1)?.toFixed(3)}
-      </figcaption>
-      <svg
-        role="img"
-        aria-label={label}
-        viewBox="0 0 600 100"
-        style={{ width: "100%", maxHeight: 140 }}
-      >
-        <polyline
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="2"
-          points={values
-            .map((v, i) =>
-              [
-                4 + (592 * i) / Math.max(1, values.length - 1),
-                94 - (88 * (v - low)) / (high - low || 1),
-              ].join(","),
-            )
-            .join(" ")}
-        />
-      </svg>
-    </figure>
-  );
 }
 export function Decision({
   base,
@@ -141,13 +110,13 @@ export function Decision({
       )}
       {obs && (
         <>
-          <Plot
-            values={obs.inputs.map(
-              (_, i) =>
-                100 *
-                Math.exp(obs.inputs.slice(0, i + 1).reduce((a, b) => a + b, 0)),
-            )}
+          <SeriesPlot
+            values={[100, ...obs.inputs.map((_, i) =>
+              100 * Math.exp(obs.inputs.slice(0, i + 1).reduce((sum, value) => sum + value, 0))
+            )]}
             label="Relative adjusted closes (starting base 100)"
+            startLabel="t − 64"
+            endLabel="Decision · t"
           />
           <p>
             P(up) {pct(obs.p)} · Model {obs.targets[0]} · MA 20/50{" "}

@@ -10,39 +10,42 @@ const pages = [
     path: "/studies",
     title: "Research studies",
     purpose: "Train models and inspect saved validation experiments.",
-    number: "↗",
   },
   {
     path: "/comparison",
     title: "Blind comparison",
     purpose: "Compare decisions on a shared validation period.",
-    number: "↗",
   },
   {
     path: "/experiments",
     title: "Experiments",
     purpose: "Understand the run before interpreting the result.",
-    number: "01",
   },
   {
     path: "/inspector",
     title: "Inspector",
     purpose: "Trace one prediction back to its inputs and evidence.",
-    number: "02",
   },
   {
     path: "/evaluation",
     title: "Evaluation",
     purpose: "Separate model errors from explanation quality.",
-    number: "03",
   },
   {
     path: "/replay",
     title: "Replay",
-    purpose: "The execution environment, not the research result.",
-    number: "04",
+    purpose: "Step through market history and inspect simulated fills.",
   },
 ];
+
+const navIcons: Record<string, string> = {
+  "/studies": "M8 3h8m-6 0v6l-6 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-9V3M7 15h10",
+  "/comparison": "M3 6h5l8 12h5m-3-3 3 3-3 3M3 18h5l3-5m3-3 2-4h5m-3-3 3 3-3 3",
+  "/experiments": "M4 4h16v16H4zM4 9h16M9 9v11",
+  "/inspector": "M16 16l5 5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0M5 11h3l2-4 2 6 2-3h1",
+  "/evaluation": "M3 3v17h18M7 16v-4m5 4V6m5 10V9",
+  "/replay": "M4 4v16m4-16 12 8-12 8z",
+};
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -100,7 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const synthetic = !comparison && !replay && bundle?.origin === "synthetic";
   if (pathname === "/jury")
     return (
-      <main className="bench-main">
+      <main className="bench-main jury-main">
         <h1>Jury session</h1>
         {children}
       </main>
@@ -112,7 +115,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </a>
       <aside className="bench-sidebar">
         <Link href="/experiments" className="bench-brand">
-          Blind Replay<span>BENCH / AI RESEARCH</span>
+          <span className="bench-mark" aria-hidden="true"><i /><i /><i /></span>
+          <span className="brand-name">Blind Replay<small>Research bench</small></span>
         </Link>
         <nav aria-label="Main navigation">
           {pages.map((p) => (
@@ -121,7 +125,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               href={destination(p.path)}
               aria-current={pathname === p.path ? "page" : undefined}
             >
-              <span aria-hidden="true">{p.number}</span>
+              <svg viewBox="0 0 24 24" className="nav-icon" aria-hidden="true">
+                <path d={navIcons[p.path]} />
+              </svg>
               {p.title}
             </Link>
           ))}
@@ -143,11 +149,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="bench-workspace">
         <header className="bench-header">
           <div>
-            <p className="eyebrow">AI Research Cockpit</p>
+
             <h1>{page.title}</h1>
             <p className="muted">{page.purpose}</p>
           </div>
-          <span className="bench-badge" role="status">
+          <span className="bench-badge source-status" role="status">
             {comparison
               ? "Validation lab"
               : replay
@@ -193,12 +199,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 />
               </label>
             </div>
-            <p className="muted">
-              Imports stay in browser memory, disappear on reload, and are never
-              uploaded. Limit: 2 MiB. Real mode clears the loaded bundle.
-              Imported origin and results are exporter declarations, not
-              independently verified.
-            </p>
+            <details className="source-help">
+              <summary>About imported data</summary>
+              <p>Imports stay in this browser tab until reload. Limit: 2 MiB. Real mode clears the bundle. Results and origin are supplied by the exporter.</p>
+            </details>
           </section>
         )}
         {synthetic && (
@@ -230,10 +234,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             children
           )}
         </main>
-        <footer className="bench-footer">
-          Evidence first. Uncertainty visible. Research artifacts are separate
-          from replay observations.
-        </footer>
+
       </div>
     </div>
   );
