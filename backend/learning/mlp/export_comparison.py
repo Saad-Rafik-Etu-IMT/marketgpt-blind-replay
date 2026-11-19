@@ -64,7 +64,17 @@ def synthetic_frame():
     )
 
 
-def export(frame, origin, seed, checkpoint):
+def export(
+    frame,
+    origin,
+    seed,
+    checkpoint,
+    model="MLP",
+    variant="reference",
+    epochs=40,
+    progress=lambda message: None,
+    research=False,
+):
     config = load_split_config()
     frame = frame.loc[frame.index <= pd.Timestamp(config.validation_end)].copy()
     if not frame.index.is_monotonic_increasing or not frame.index.is_unique:
@@ -86,14 +96,57 @@ def export(frame, origin, seed, checkpoint):
     xt, yt = make_xy(values, splits.train, 64)
     xv, yv = make_xy(values, val, 64)
     mean, std = fit_normalizer(xt)
-    params, history = train(
-        normalize(xt, mean, std), yt, normalize(xv, mean, std), yv, seed=seed
-    )
-    np.savez(checkpoint, **params, mean=mean, std=std)
+    progress("Training")
+    if model == "Transformer":
+        from transformer_reference import fit_transformer
+
+        predict, history, parameter_count = fit_transformer(
+            xt, yt, xv, yv, seed, variant, epochs, checkpoint
+        )
+    else:
+        params, history = train(
+            normalize(xt, mean, std),
+            yt,
+            normalize(xv, mean, std),
+            yv,
+            seed=seed,
+            epochs=epochs,
+        )
+        np.savez(checkpoint, **params, mean=mean, std=std)
+        parameter_count = sum(w.size for w in params.values())
+
+        def predict(windows):
+            return mlp_forward(normalize(windows, mean, std), params)[0][:, 1]
+
+    class Predictor:
+        name = model
+
+        def decide(self, observation):
+            p = float(predict(np.array([observation.log_returns]))[0])
+            return PlayerDecision(
+                "long" if p >= 0.5 else "flat", BinaryProbabilities(p, 1 - p)
+            )
+
+    progress("Replaying three strategies")
     engine = build_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     profile = load_benchmark_profile()
     segment = bars[val[0] - 63 : val[-1] + 3]
+    accounting = "raw-price"
+    if research and origin == "experimental":
+        # A synthetic total-return unit anchored to the first visible raw close.
+        # Its relative adjusted closes incorporate distributions and splits.
+        anchor = segment[0].close / segment[0].adjusted_close
+        segment = [
+            bar.model_copy(
+                update={
+                    name: getattr(bar, name) * anchor * bar.adjusted_close / bar.close
+                    for name in ("open", "high", "low", "close")
+                }
+            )
+            for bar in segment
+        ]
+        accounting = "reinvested total-return index; synthetic tradable units"
     window = DecisionWindow(64, len(segment) - 2)
     strategies = []
     cases = []
@@ -101,7 +154,7 @@ def export(frame, origin, seed, checkpoint):
         db.add_all(OHLCVBarORM(instrument="ETF", **bar.model_dump()) for bar in segment)
         db.commit()
         for player in (
-            LearningPlayer(params, mean, std),
+            Predictor(),
             MovingAverageCrossoverPlayer(),
             BuyAndHoldPlayer(),
         ):
@@ -110,11 +163,17 @@ def export(frame, origin, seed, checkpoint):
             ).session_id
             step_session(db, sid, 64)
             equity = [profile.initial_cash]
+            exposures, fees = [], []
             for i, t in enumerate(val):
                 decision = decide_and_submit(db, sid, player, window, 64, profile)
                 step_session(db, sid)
                 result = resolve_outcome(db, decision)
-                equity.append(current_snapshot(db, sid).equity)
+                snapshot = current_snapshot(db, sid)
+                equity.append(snapshot.equity)
+                exposures.append(
+                    1 - snapshot.cash / snapshot.equity if snapshot.equity else 0
+                )
+                fees.append(snapshot.total_fees)
                 if len(cases) == i:
                     cases.append(
                         dict(
@@ -141,6 +200,9 @@ def export(frame, origin, seed, checkpoint):
                     name=player.name,
                     gain=equity[-1] / equity[0] - 1,
                     dd=max_drawdown(equity),
+                    equity=equity,
+                    exposure=exposures,
+                    fees=fees,
                 )
             )
     engine.dispose()
@@ -172,7 +234,34 @@ def export(frame, origin, seed, checkpoint):
                 )
             )
     bins = NumericReturnTokenizer().fit(xt).bin_edges
+    inspection = []
+    if research:
+        progress("Measuring occlusion sensitivity")
+        for start in range(0, 64, 8):
+            masked = xv.copy()
+            masked[:, start : start + 8] = mean
+            inspection.append(
+                np.concatenate(
+                    [
+                        predict(batch)
+                        for batch in np.array_split(masked, max(1, len(masked) // 128))
+                    ]
+                )
+            )
+        for i, case in enumerate(cases):
+            case["occlusion"] = [float(case["p"] - column[i]) for column in inspection]
+            case["period"] = str(segment[i + 64].date)[:7]
     return dict(
+        accounting=accounting,
+        model=model,
+        variant=variant,
+        epochs=epochs,
+        parameters=parameter_count,
+        normalization=dict(mean=float(mean), std=float(std)),
+        trainUp=float(yt.mean()),
+        validationUp=float(yv.mean()),
+        rows=len(frame),
+        missing=int(frame.isna().sum().sum()),
         bins=list(bins),
         version=2,
         macroF1=float(np.mean(f1)),

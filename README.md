@@ -3,14 +3,16 @@
 `marketgpt-blind-replay` is a six-student Deep Learning & LLM course project:
 compare a small Transformer trained on past returns (MarketGPT) with simple
 players on unseen historical market periods, hiding tickers, dates and real
-price levels. The repository currently contains a working local replay
-foundation, the data/split/scenario/blind-observation/execution layer (F1–F5) and
-an initial research cockpit. Models, training, evaluation runners and real
-natural-language explanation generation are planned, not implemented
-([verified state](#audit-2026-11-17-verified-state-and-gaps),
-[remaining work plan](docs/work-plan.md)).
+price levels. The cockpit supports saved validation studies with the learning MLP, a CPU reference
+Transformer, two trading baselines, and optional local explanation generation.
+The student-owned MarketGPT implementation and final sealed-test evaluation
+are tracked in the [course work plan](docs/work-plan.md).
 
 **Educational simulation only: no real money, live broker or investment advice.**
+
+## Saved research studies
+
+**Research studies** launches local MLP and CPU reference Transformer runs, compares seeds and ablations, and carries the selected experiment through data inspection, evaluation, a server-held blind vote and portfolio review. The results persist on the backend. See [setup, models, jury mode and walkthrough](docs/research-studies.md). This implementation supersedes the earlier dated roadmap for the validation cockpit. The course MarketGPT implementation and sealed test campaign are separate.
 
 ## Blind comparison cockpit
 
@@ -34,7 +36,7 @@ The 95% interval uses 1,000 paired circular bootstrap samples in 10-decision
 blocks, conditional on this seed and validation period. Raw-price simulated
 equity omits corporate actions. This explorer uses the learning MLP and its own
 binary validation format, independently of the legacy research bundle v1.
-The sealed test benchmark, Transformer and LLM remain future work.
+For reference Transformer runs and local explanations, open **Research studies**.
 
 ## Learning objectives
 
