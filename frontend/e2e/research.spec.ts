@@ -8,6 +8,7 @@ test("connected research workflow, mode isolation and responsive themes", async 
   await expect(page).toHaveURL(/\/experiments$/);
   await expect(page.getByText("No Data · Real mode", { exact: true })).toBeVisible();
   await expect(page.getByText("No research runs loaded")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Load synthetic demo" })).toBeEnabled();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
   await page.getByRole("button", { name: "Load synthetic demo" }).focus();
