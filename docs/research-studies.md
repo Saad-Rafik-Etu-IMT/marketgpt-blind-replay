@@ -12,6 +12,20 @@ python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 
 Select **MLP+Transformer**, enter seeds such as `0,1,2`, and enable four ablations for a paired campaign. Every model sees the same adjusted-close windows. The encoder uses PyTorch's standard self-attention implementation, two heads, a 16-dimensional embedding, mean pooling and a binary output. The ablations remove positional embeddings, dropout, weight decay or the cosine schedule one at a time. Each run restores the lowest-validation-loss weights. The comparison estimates validation performance conditional on training and model selection. Final sealed test evaluation is a separate experiment.
 
+## Historical validation example
+
+For the repository's configured historical sources, run `python -m pip install -e ".[data]"` and `python -m src.data.download` from `backend/` in the project environment. Reopen **Research studies** and choose the downloaded ticker.
+
+A local SPY verification run used 1,258 daily bars from 2015–2019, 439 training windows, seed 0 and two epochs. Both models completed broker replay on the same 627 validation decisions. The always-up baseline predicted 359 correctly.
+
+| Predictor | Correct decisions | Accuracy | Macro-F1 |
+| --- | ---: | ---: | ---: |
+| MLP | 324 / 627 | 51.7% | 0.505 |
+| Reference Transformer | 300 / 627 | 47.8% | 0.475 |
+| Always up | 359 / 627 | 57.3% | 0.364 |
+
+Both models fell below the always-up baseline on accuracy in this run. Macro-F1 gives equal weight to the up and non-up classes, which explains how both models can score higher on macro-F1 while making fewer correct predictions overall. The short single-seed run exercises the workflow. The project’s generalization claim still requires a separately evaluated holdout.
+
 ## Inspect and demonstrate
 
 1. **Data** shows partition dates, sample counts, class balance, fitted scaling and quantile boundaries.

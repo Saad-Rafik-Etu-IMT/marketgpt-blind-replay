@@ -177,6 +177,9 @@ function Results({ r, inspect }: { r: Report; inspect: (i: number) => void }) {
   const rows = r.samples.filter((x) => period === "all" || x.period === period);
   const cells = [0, 0, 0, 0];
   rows.forEach((x) => cells[Number(x.up) * 2 + Number(x.p >= 0.5)]++);
+  const modelHits = cells[0] + cells[3];
+  const alwaysUpHits = cells[2] + cells[3];
+  const accuracy = (hits: number) => rows.length ? pct(hits / rows.length) : "—";
   const cases = rows
     .filter((x) => filter === "all" || (x.p >= 0.5) !== x.up)
     .sort((a, b) => Math.abs(b.p - 0.5) - Math.abs(a.p - 0.5));
@@ -194,8 +197,8 @@ function Results({ r, inspect }: { r: Report; inspect: (i: number) => void }) {
         </select>
       </label>
       <p>
-        {rows.length} cases · Accuracy{" "}
-        {pct((cells[0] + cells[3]) / rows.length)}
+        {rows.length} cases · Model accuracy {accuracy(modelHits)} · Always-up
+        accuracy {accuracy(alwaysUpHits)}
       </p>
       <table>
         <caption>Confusion matrix</caption>
