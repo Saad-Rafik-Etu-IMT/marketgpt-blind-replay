@@ -8,6 +8,7 @@ import { api, pct } from "./StudyWidgets";
 import { LinePlot, plotColors, points, type Series } from "./ScientificPlot";
 import { SensitivityPlot } from "./ResearchFigures";
 import { studyLabel, type StudySummary } from "@/lib/research/study-summary";
+import { competitionRunSignature, isTerminalStudy, replayClock } from "@/lib/research/replay-clock";
 
 type Portfolio = {
   bar_index: number;
@@ -151,9 +152,7 @@ export function CompetitionReplay() {
     queryFn: () => api<Overview>(`/${study}`),
     enabled: !!study,
     refetchInterval: (q) =>
-      ["complete", "failed", "interrupted"].includes(
-        q.state.data?.status.state ?? "",
-      )
+      isTerminalStudy(q.state.data?.status.state)
         ? false
         : 2000,
   });
@@ -175,13 +174,14 @@ export function CompetitionReplay() {
   );
   const selectedVariant = variants.includes(variant) ? variant : "reference";
   const replay = useQuery({
-    queryKey: ["competition", study, selectedSeed, selectedVariant],
+    queryKey: ["competition", study, selectedSeed, selectedVariant,
+      competitionRunSignature(runs, selectedSeed, selectedVariant)],
     queryFn: () =>
       api<Competition>(
         `/${study}/competition?seed=${selectedSeed}&variant=${selectedVariant}`,
       ),
     enabled: !!study && selectedSeed !== undefined && runs.length > 0,
-    refetchInterval: overview.data?.status.state === "complete" ? false : 3500,
+    refetchInterval: isTerminalStudy(overview.data?.status.state) ? false : 3500,
   });
   const showSelection = selectionOpen || !replay.data;
   const studySummary = inventory.data?.studies.find((s) => s.id === study);
@@ -374,11 +374,8 @@ function Replay({
   const [reason, setReason] = useState("");
   const length = data.players[0].events.length;
   const player = data.players[selected] ?? data.players[0];
-  const stepIndex = Math.min(
-    showPrevious && cursor > 0 ? cursor - 1 : cursor,
-    length - 1,
-  );
-  const revealed = stepIndex < cursor;
+  const clock = replayClock(length, cursor, showPrevious);
+  const { decisionIndex: stepIndex, revealed } = clock;
   const event = player.events[stepIndex];
   const stageNames = [
     "Input & prediction",
@@ -421,7 +418,7 @@ function Replay({
   );
   const snapshots = (p: Player) => [
     p.initial,
-    ...p.events.slice(0, cursor).map((e) => e.portfolio),
+    ...p.events.slice(0, clock.outcomeCount).map((e) => e.portfolio),
   ];
   const current = (p: Player) =>
     cursor ? p.events[cursor - 1].portfolio : p.initial;
@@ -491,7 +488,7 @@ function Replay({
             name: p.name,
             color: color(i),
             points: p.events
-              .slice(0, Math.min(cursor + 1, length))
+              .slice(0, clock.decisionCount)
               .flatMap((e, x) =>
                 e.decision.probabilities
                   ? [{ x, y: e.decision.probabilities.long }]
@@ -503,10 +500,10 @@ function Replay({
   );
   const market = data.market.slice(
     data.firstDecision,
-    data.firstDecision + cursor + 1,
+    data.firstDecision + clock.marketCount,
   );
   const markers = data.players.flatMap((p, i) =>
-    p.events.slice(0, cursor).flatMap((e) =>
+    p.events.slice(0, clock.outcomeCount).flatMap((e) =>
       e.execution?.fill_bar != null && e.execution.fill_price != null
         ? [
             {

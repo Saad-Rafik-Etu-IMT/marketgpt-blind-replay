@@ -96,8 +96,12 @@ def export(
     epochs=40,
     progress=lambda message: None,
     research=False,
+    *,
+    config=None,
+    profile=None,
 ):
-    config = load_split_config()
+    config = config if config is not None else load_split_config()
+    profile = profile if profile is not None else load_benchmark_profile()
     frame = frame.loc[frame.index <= pd.Timestamp(config.validation_end)].copy()
     if not frame.index.is_monotonic_increasing or not frame.index.is_unique:
         raise ValueError("Expected unique dates in chronological order")
@@ -152,7 +156,6 @@ def export(
     progress("Replaying three strategies")
     engine = build_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    profile = load_benchmark_profile()
     segment = bars[val[0] - 63 : val[-1] + 3]
     accounting = "raw-price"
     if research and origin == "experimental":

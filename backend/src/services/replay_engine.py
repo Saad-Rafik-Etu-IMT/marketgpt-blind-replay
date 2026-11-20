@@ -89,14 +89,18 @@ def create_session(
         spread_bps=spread_bps,
         created_at=datetime.now(timezone.utc),
     )
-    db.add(orm)
-    db.commit()
-
     # Emit the initial portfolio snapshot at bar 0. Lazy import to
     # avoid a circular dependency at module load time.
     from src.services.portfolio_service import initialize_session
 
-    initialize_session(db, orm.session_id)
+    try:
+        db.add(orm)
+        db.flush()
+        initialize_session(db, orm.session_id, commit=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     logger.info(
         "session created: id=%s instrument=%s bars=%d cash=%.2f",
@@ -251,8 +255,9 @@ def get_visible_bars(db: Session, session_id: str) -> list[OHLCVBar]:
     future bar can leak to a caller.
     """
     orm = _load_orm(db, session_id)
-    bars = _ordered_bars(db, orm.instrument, orm.start_date, orm.end_date)
-    visible = bars[: orm.current_bar_index + 1]
+    visible = _ordered_bars(
+        db, orm.instrument, orm.start_date, orm.end_date, orm.current_bar_index + 1
+    )
     return [
         OHLCVBar(
             date=b.date,
@@ -290,7 +295,7 @@ def _count_bars(db: Session, instrument: str, start_date: date, end_date: date) 
 
 
 def _ordered_bars(
-    db: Session, instrument: str, start_date: date, end_date: date
+    db: Session, instrument: str, start_date: date, end_date: date, limit: int
 ) -> list[OHLCVBarORM]:
     return list(
         db.execute(
@@ -299,6 +304,7 @@ def _ordered_bars(
             .where(OHLCVBarORM.date >= start_date)
             .where(OHLCVBarORM.date <= end_date)
             .order_by(OHLCVBarORM.date)
+            .limit(limit)
         ).scalars()
     )
 

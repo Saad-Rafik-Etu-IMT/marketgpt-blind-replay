@@ -16,6 +16,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "alembic>=1.13",
     "pandas>=2.2",
+    "numpy>=1.26",  # direct dependency of training and evaluation
     "python-multipart>=0.0.9",  # required by POST /api/market/upload (Phase 1)
 ]
 
