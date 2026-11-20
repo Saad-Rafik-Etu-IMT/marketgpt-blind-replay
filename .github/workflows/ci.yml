@@ -129,5 +129,6 @@ jobs:
           path: |
             frontend/test-results/design-*/*.png
             frontend/test-results/studies-*/*.png
+            frontend/test-results/laboratory-*/*.png
           if-no-files-found: error
           retention-days: 14

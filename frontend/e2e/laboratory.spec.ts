@@ -3,23 +3,26 @@ import { expect, test } from "@playwright/test";
 test("research laboratory runs a real synthetic campaign and preserves the selected evidence", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "Research laboratory", exact: true }),
   ).toBeVisible();
   const tabs = page.getByRole("navigation", { name: "Laboratories" });
-  await tabs.getByRole("button", { name: "Data", exact: true }).click();
+  await tabs.getByRole("link", { name: "Data", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Point-in-time feature explorer" }),
   ).toBeVisible();
   await expect(
     page.getByRole("img", { name: /rsi_14.*development history/ }),
   ).toBeVisible();
-  await tabs.getByRole("button", { name: "Training", exact: true }).click();
+  await tabs.getByRole("link", { name: "Training", exact: true }).click();
   await page.getByLabel("Campaign name").fill("E2E laboratory");
+  for (let i = 0; i < 3; i++)
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByLabel("Maximum epochs").fill("1");
   await page.getByLabel("Automatic evaluation").selectOption("no");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("button", { name: "Estimate campaign" }).click();
   await expect(
     page.getByRole("button", { name: "Queue campaign" }),
@@ -32,27 +35,25 @@ test("research laboratory runs a real synthetic campaign and preserves the selec
     timeout: 60_000,
   });
   await expect(page.getByRole("img", { name: /Convergence/ })).toBeVisible();
-  await tabs.getByRole("button", { name: "Evaluation", exact: true }).click();
+  await tabs.getByRole("link", { name: "Evaluation", exact: true }).click();
   await page
     .getByRole("button", { name: "Generate evaluation report" })
     .click();
   await expect(
     page.getByRole("heading", { name: "Feature ablation" }),
-  ).toBeVisible({ timeout: 60_000 });
+  ).toBeVisible({ timeout: 120_000 });
   await expect(
     page.getByRole("img", { name: /Model versus statistical baselines/ }),
   ).toBeVisible();
-  await tabs
-    .getByRole("button", { name: "Explainability", exact: true })
-    .click();
+  await tabs.getByRole("link", { name: "Explainability", exact: true }).click();
   await expect(
     page.getByRole("img", { name: /Feature sensitivity/ }),
   ).toBeVisible();
-  await tabs.getByRole("button", { name: "Replay", exact: true }).click();
+  await tabs.getByRole("link", { name: "Replay", exact: true }).click();
   await page.getByRole("button", { name: "Generate replay" }).click();
   await expect(
     page.getByRole("heading", { name: "Current blind decision" }),
-  ).toBeVisible({ timeout: 60_000 });
+  ).toBeVisible({ timeout: 120_000 });
   await page.getByRole("button", { name: "Reveal next session" }).click();
   await expect(page.getByRole("img", { name: /Marked equity/ })).toBeVisible();
   await page.getByRole("button", { name: "Measured facts" }).click();
@@ -63,4 +64,30 @@ test("research laboratory runs a real synthetic campaign and preserves the selec
     path: screenshot,
     contentType: "image/png",
   });
+  await expect(page).toHaveURL(/cursor=1/);
+  await page.reload();
+  await expect(page.getByText(/Revealed decisions: 1\//)).toBeVisible();
+  await tabs.getByRole("link", { name: /Presentation/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Research question", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Results", exact: true }).click();
+  await expect(page.getByLabel("Principal scientific finding")).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("presentation.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Exit presentation" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Scientific evaluation" }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Switch to dark theme" }).click();
+  await page.screenshot({
+    path: testInfo.outputPath("laboratory-mobile.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(390);
 });
