@@ -3,9 +3,17 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Decision, api, pct } from "@/components/research/StudyWidgets";
 import { SeriesPlot } from "@/components/research/SeriesPlot";
 import { TrainingCurve } from "@/components/research/TrainingCurve";
+import {
+  ModelFigures,
+  ReliabilityPlot,
+  ConfusionPlot,
+  DatasetFigures,
+} from "@/components/research/ResearchFigures";
+import { HumanEvaluation } from "@/components/research/HumanEvaluation";
 
 type State = { state: string; message: string; done: number; total: number };
 type Inventory = {
@@ -19,6 +27,7 @@ type Run = {
   variant: string;
   seed: number;
   f1: number;
+  accuracy: number;
   loss: number;
   curves: { step: number; trainingLoss: number; validationLoss: number }[];
 };
@@ -64,6 +73,7 @@ const tabs = [
   "Inspector",
   "Blind replay",
   "Evaluation",
+  "Explanations",
   "Portfolio",
   "Presentation",
 ];
@@ -151,7 +161,11 @@ function Launcher({
             Include four ablations
           </label>
         )}
-        <button className="bench-button primary-action" disabled={busy} onClick={submit}>
+        <button
+          className="bench-button primary-action"
+          disabled={busy}
+          onClick={submit}
+        >
           Start training
         </button>
       </div>
@@ -180,9 +194,10 @@ function Results({ r, inspect }: { r: Report; inspect: (i: number) => void }) {
   rows.forEach((x) => cells[Number(x.up) * 2 + Number(x.p >= 0.5)]++);
   const modelHits = cells[0] + cells[3];
   const alwaysUpHits = cells[2] + cells[3];
-  const accuracy = (hits: number) => rows.length ? pct(hits / rows.length) : "—";
+  const accuracy = (hits: number) =>
+    rows.length ? pct(hits / rows.length) : "—";
   const cases = rows
-    .filter((x) => filter === "all" || (x.p >= 0.5) !== x.up)
+    .filter((x) => filter === "all" || x.p >= 0.5 !== x.up)
     .sort((a, b) => Math.abs(b.p - 0.5) - Math.abs(a.p - 0.5));
   return (
     <section className="bench-panel">
@@ -223,15 +238,10 @@ function Results({ r, inspect }: { r: Report; inspect: (i: number) => void }) {
           </tr>
         </tbody>
       </table>
-      <h3>Full-period calibration</h3>
-      {r.calibration.map((v, i) => (
-        <p key={i}>
-          <meter min={0} max={1} value={v.observed} /> Predicted{" "}
-          {pct(v.predicted)} · observed {pct(v.observed)} ({v.count})
-        </p>
-      ))}
+      <ConfusionPlot cells={cells} />
+      <ReliabilityPlot key={period} samples={rows} inspect={inspect} />
       <p>
-        Paired 95% interval for accuracy difference vs always up:{" "}
+        Full-period paired 95% interval for accuracy difference vs always up:{" "}
         {r.interval.map(pct).join(" to ")}.
       </p>
       <label>
@@ -256,7 +266,13 @@ function Results({ r, inspect }: { r: Report; inspect: (i: number) => void }) {
     </section>
   );
 }
-function Guide({ go }: { go: (name: string) => void }) {
+function Guide({
+  go,
+  replayHref,
+}: {
+  go: (name: string) => void;
+  replayHref: string;
+}) {
   const team = useQuery({
     queryKey: ["research-contributions"],
     queryFn: () =>
@@ -281,8 +297,14 @@ function Guide({ go }: { go: (name: string) => void }) {
   return (
     <section className="bench-panel">
       <h2>Three-minute defense</h2>
-      <p>Can a model trained on 64 past returns predict the next move better than a simple baseline on unseen dates?</p>
-      <p>Use a single saved run throughout. Ask the jury to vote on one window, then compare its outcome with the full validation period.</p>
+      <p>
+        Can a model trained on 64 past returns predict the next move better than
+        a simple baseline on unseen dates?
+      </p>
+      <p>
+        Use a single saved run throughout. Ask the jury to vote on one window,
+        then compare its outcome with the full validation period.
+      </p>
       <button
         className="bench-button"
         onClick={() => {
@@ -296,11 +318,26 @@ function Guide({ go }: { go: (name: string) => void }) {
       <p>
         {Math.floor(elapsed / 60)}m {elapsed % 60}s
       </p>
+      <Link className="bench-button primary-action" href={replayHref}>
+        Watch recorded AI competition
+      </Link>
       {[
-        ["0:00 · Data source, chronological split and class balance (3/20)", "Data"],
-        ["0:30 · Course relevance (3/20), architecture and training (3/20)", "Experiment"],
-        ["1:00 · Execution (5/20). Cast a vote and reveal the broker fills", "Blind replay"],
-        ["1:35 · Results (5/20). Compare with always-up and inspect an error", "Evaluation"],
+        [
+          "0:00 · Data source, chronological split and class balance (3/20)",
+          "Data",
+        ],
+        [
+          "0:30 · Course relevance (3/20), architecture and training (3/20)",
+          "Experiment",
+        ],
+        [
+          "1:00 · Execution (5/20). Cast a vote and reveal the broker fills",
+          "Blind replay",
+        ],
+        [
+          "1:35 · Results (5/20). Compare with always-up and inspect an error",
+          "Evaluation",
+        ],
         ["2:10 · Explain the decision", "Inspector"],
         ["2:40 · Portfolio limits and team ownership", "Portfolio"],
       ].map(([label, tab]) => (
@@ -311,7 +348,11 @@ function Guide({ go }: { go: (name: string) => void }) {
         </p>
       ))}
       <h3>Task distribution (1/20)</h3>
-      <p><a href="https://github.com/Saad-Rafik-Etu-IMT/marketgpt-blind-replay/blob/main/docs/work-plan.md#proposed-six-member-allocation">Proposed responsibilities for the six members</a></p>
+      <p>
+        <a href="https://github.com/Saad-Rafik-Etu-IMT/marketgpt-blind-replay/blob/main/docs/work-plan.md#proposed-six-member-allocation">
+          Proposed responsibilities for the six members
+        </a>
+      </p>
       <p>Recorded commits by area</p>
       {team.data?.map((area) => (
         <p key={area.area}>
@@ -436,6 +477,14 @@ export default function Studies() {
                 </select>
               </label>
             )}
+            {run && (
+              <Link
+                className="bench-button primary-action"
+                href={`/replay?study=${id}&run=${run.key}&seed=${run.seed}&variant=${run.variant}&case=${index}`}
+              >
+                Watch AI competition ↗
+              </Link>
+            )}
           </>
         )}
       </section>
@@ -460,6 +509,20 @@ export default function Studies() {
           {tab === "Experiment" && (
             <section className="bench-panel">
               <h2>Model and ablation comparison</h2>
+              <ModelFigures
+                runs={s.runs}
+                seed={run.seed}
+                onSeed={(seed) => {
+                  const match =
+                    s.runs.find(
+                      (r) =>
+                        r.seed === seed &&
+                        r.model === run.model &&
+                        r.variant === run.variant,
+                    ) ?? s.runs.find((r) => r.seed === seed);
+                  if (match) nav({ run: match.key, case: "0" });
+                }}
+              />
               <table>
                 <thead>
                   <tr>
@@ -520,6 +583,7 @@ export default function Studies() {
           {tab === "Data" && r && (
             <section className="bench-panel">
               <h2>{s.config.source} · Dataset and preprocessing</h2>
+              <DatasetFigures study={id} dataset={r.dataset} />
               <p>
                 {r.rows} source rows through validation · {r.missing} missing
                 values · training through {r.trainEnd} · validation{" "}
@@ -534,7 +598,12 @@ export default function Studies() {
                 Training mean {r.normalization.mean.toPrecision(4)} · standard
                 deviation {r.normalization.std.toPrecision(4)}
               </p>
-              <SeriesPlot values={r.bins} label="Train-fitted quantile boundaries" startLabel="Lowest boundary" endLabel="Highest boundary" />
+              <SeriesPlot
+                values={r.bins}
+                label="Train-fitted quantile boundaries"
+                startLabel="Lowest boundary"
+                endLabel="Highest boundary"
+              />
               <details>
                 <summary>Reproduction identifiers</summary>
                 <p style={{ overflowWrap: "anywhere" }}>
@@ -561,6 +630,7 @@ export default function Studies() {
               inspect={(i) => nav({ case: String(i), tab: "Inspector" })}
             />
           )}
+          {tab === "Explanations" && <HumanEvaluation key={base} base={base} />}
           {tab === "Evaluation" && catalog.data && (
             <details className="bench-panel">
               <summary>Compare results across datasets</summary>
@@ -626,10 +696,15 @@ export default function Studies() {
                     {x.name} · return {pct(x.gain)} · max drawdown {pct(x.dd)}
                   </summary>
                   <SeriesPlot values={x.equity} label="Marked equity" />
-                  <SeriesPlot values={drawdowns(x.equity)} percent label="Drawdown from running peak" />
+                  <SeriesPlot
+                    values={drawdowns(x.equity)}
+                    percent
+                    label="Drawdown from running peak"
+                  />
                   <SeriesPlot
                     values={x.exposure}
-                    percent label="Fraction of equity exposed"
+                    percent
+                    label="Fraction of equity exposed"
                   />
                   <p>
                     Fees {x.fees.at(-1)?.toFixed(2)} · rejected decisions{" "}
@@ -639,7 +714,12 @@ export default function Studies() {
               ))}
             </section>
           )}
-          {tab === "Presentation" && <Guide go={(t) => nav({ tab: t })} />}
+          {tab === "Presentation" && (
+            <Guide
+              go={(t) => nav({ tab: t })}
+              replayHref={`/replay?study=${id}&run=${run.key}&seed=${run.seed}&variant=${run.variant}`}
+            />
+          )}
         </>
       )}
     </div>

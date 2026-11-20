@@ -104,6 +104,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cockpit-screenshots
-          path: frontend/test-results/design-*/*.png
+          path: |
+            frontend/test-results/design-*/*.png
+            frontend/test-results/studies-*/*.png
           if-no-files-found: error
           retention-days: 14

@@ -29,6 +29,7 @@ test("synthetic replay: upload, start, order, step, portfolio, complete", async 
   expect((await request.get(`${backend}/api/market/bars/${instrument}`)).status()).toBe(404);
 
   await page.goto("/replay");
+  await page.getByRole("button", {name:"Manual simulation"}).click();
   await expect(page.getByLabel("Instrument", { exact: true })).toBeVisible();
   await page.getByLabel("Instrument", { exact: true }).selectOption(instrument);
   await page.getByLabel("Fee per unit", { exact: true }).fill("0");

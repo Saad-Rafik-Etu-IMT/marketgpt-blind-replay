@@ -34,7 +34,7 @@ const pages = [
   {
     path: "/replay",
     title: "Replay",
-    purpose: "Step through market history and inspect simulated fills.",
+    purpose: "Watch competing models trade on a shared market clock and inspect the engine.",
   },
 ];
 
@@ -61,6 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   function destination(path: string) {
     if (!params.get("study")) return path;
     const q = new URLSearchParams(params.toString());
+    if (path === "/replay") return "/replay?" + q.toString();
     q.set("tab", linkedViews[path]);
     return "/studies?" + q.toString();
   }
@@ -157,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {comparison
               ? "Validation lab"
               : replay
-                ? "Real · Replay API"
+                ? "Recorded engine · simulation"
                 : synthetic
                   ? "Synthetic Demo"
                   : bundle

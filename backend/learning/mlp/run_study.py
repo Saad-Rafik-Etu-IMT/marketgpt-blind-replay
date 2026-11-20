@@ -5,7 +5,9 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-from export_comparison import export, synthetic_frame
+from export_comparison import dataset_timeline, export, synthetic_frame
+
+from src.data.split import load_split_config
 
 
 def write(path, value):
@@ -26,6 +28,7 @@ def work(root):
         len(spec["variants"]) if m == "Transformer" else 1 for m in spec["models"]
     )
     completed = 0
+    timeline = dataset_timeline(frame, load_split_config())
     for model in spec["models"]:
         for variant in spec["variants"] if model == "Transformer" else ["reference"]:
             for seed in spec["seeds"]:
@@ -56,6 +59,10 @@ def work(root):
                     progress=progress,
                     research=True,
                 )
+                if result["dataset"] != timeline["dataset"]:
+                    raise ValueError("Timeline and run use different data")
+                if completed == 0:
+                    write(root / "timeline.json", timeline)
                 write(root / (key + ".json"), result)
                 write(
                     root / ("summary-" + key + ".meta"),

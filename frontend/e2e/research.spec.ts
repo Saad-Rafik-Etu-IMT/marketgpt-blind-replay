@@ -50,6 +50,7 @@ test("connected research workflow, mode isolation and responsive themes", async 
   await expect(page.getByText("No evaluation report loaded")).toBeVisible();
   await expect(page.getByText("Synthetic Demo", { exact: true })).toHaveCount(0);
   await page.getByRole("navigation").getByRole("link", { name: /Replay/ }).click();
+  await page.getByRole("button", {name:"Manual simulation"}).click();
   await expect(page.getByRole("button", { name: "Start session", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });

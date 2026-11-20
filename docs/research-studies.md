@@ -28,6 +28,79 @@ Both models fell below the always-up baseline on accuracy in this run. Macro-F1 
 
 ## Inspect and demonstrate
 
+### Recorded AI competition
+
+Open **Replay → AI competition** or use **Watch AI competition** on a saved
+study. Select a study, seed and available Transformer variant. For a four-player
+comparison, train a fresh study with both MLP and Transformer (CPU PyTorch is
+required). A one-model study still has the two rule-based strategies. Older saved
+studies remain readable, but need to be rerun to record engine events.
+
+The worker writes the engine's actual `DecisionRecord`, `ExecutionOutcome` and
+`PortfolioSnapshotRead` for each session. The timeline contains the exact OHLC
+bars inserted into the simulator, including its declared accounting convention.
+The competition API joins the AI runs only when market data, profile, accounting,
+decision windows and baseline results match. Each rule-based baseline is shown
+once. No browser-side trading or retraining is needed during playback.
+
+- The slider is the number of revealed next-session closes. At session 0 the
+  initial snapshot and first available decision are visible. Advancing one session
+  reveals the actual next-open fill (if any) and next-close portfolio snapshot.
+- Play, pause, restart, seek and automatic pause on disagreement or fill use
+  the same cursor for all players. Select a player and click an engine stage to
+  inspect the corresponding fields. Inspect the previous revealed decision to
+  explain the execution outcome. Prices and PnL remain hidden until their
+  session is revealed in this UI.
+- The price plot uses simulated closes and exact execution prices (▲ buy, ▼
+  sell). Equity, cumulative net change from initial equity, drawdown, market
+  exposure and probability plots display only the revealed prefix. An AI's
+  probability at the current close is available at decision time. The raw
+  operator API serves the complete validation artifact; this viewer is for
+  presentation, not an adversarial blind test. Use the isolated jury listener
+  for a real vote-before-reveal challenge.
+- **Manual simulation** still exposes the original interactive replay controls.
+- New scientific figures have **Export SVG** buttons. The files are scalable
+  vector figures with a white background, axes, titles and series labels for
+  reports or slides.
+
+### Scientific figures
+
+The Experiment tab pairs each Transformer variant with its own reference seed,
+reports missing pairs, and plots the learning curves of the two reference models
+with identical axes and the first minimum-validation-loss checkpoint marked.
+The Evaluation tab computes five equal-width reliability bins from the currently
+selected period, including probabilities of exactly 1 in the final bin. Exact
+bin values and navigable cases remain available. Confusion counts are also shown
+as a heatmap. Inspector compares the eight blocks using masked-minus-original
+probabilities in percentage points. This is a measured intervention on the inputs.
+
+The Data tab uses a single saved timeline with the study's own split configuration
+and fingerprint. It displays returns and their distribution only through
+validation; the test boundary is configuration metadata. The observed calendar
+gap and the required embargo in bars are separately identified.
+
+### Collecting explanation evaluation responses
+
+In **Research studies → Explanations**, select the exact validation run used for
+the human experiment. In Replay, the explanation format selector offers the same
+facts as a table or as constrained LLM output. Before collecting responses, counterbalance the assignment
+of distinct cases to fact-table and LLM explanation conditions. Use the same
+underlying facts for both. Ask each participant to give the displayed rising
+probability (percent, one decimal) and identify the eight-return block with the
+largest absolute measured sensitivity (block 1 is oldest, block 8 newest). Record
+preference after they have seen both formats. Use anonymous participant codes.
+
+Import a JSON object shaped as `{"responses": [...]}`. Each response specifies
+`participant`, `case` (one-based), `format` (`facts` or `llm`), `source` (actual
+model or fact sheet), `fallback` (boolean), `probability_percent` (0–100), `block`
+(1–8), and optional `preference` (`facts`, `llm`, `equal`). The import replaces
+the selected run's previous response file. Scores use the saved prediction and
+occlusion values, count the two questions equally, and accept tied strongest
+blocks. The paired plot averages scores within each participant and assigned
+format before calculating the mean paired difference. It reports incomplete
+pairs and LLM fallbacks, and shows preference independently. No human scores
+appear before actual responses are imported.
+
 1. **Data** shows partition dates, sample counts, class balance, fitted scaling and quantile boundaries.
 2. **Experiment** groups results by model and variant across seeds. Select an individual run to see its loss curves and model details.
 3. **Evaluation** filters the confusion matrix by month and links errors to their exact input windows. Calibration and the paired bootstrap interval cover the complete validation period. The dataset comparison links completed runs across studies.
@@ -47,4 +120,4 @@ Set `NEXT_PUBLIC_JURY_API_BASE_URL=http://localhost:8001` when starting or build
 
 ## Local explanation generation
 
-Set `MRTL_OLLAMA_MODEL` to an installed model name in a running local Ollama service on port 11434. Alternatively install `llama-cpp-python` and set `MRTL_GGUF_MODEL` to a compatible local model file. Environment settings belong to the backend. **Explain from measured facts** uses constrained verbalization of the predicted probability, position target and strongest measured occlusion. The result identifies its source. Failed validation or an unavailable runtime returns a labelled deterministic template. No model file or real market dataset is bundled.
+Set `MRTL_OLLAMA_MODEL` to an installed model name in a running local Ollama service on port 11434. Alternatively install `llama-cpp-python` and set `MRTL_GGUF_MODEL` to a compatible local model file. Environment settings belong to the backend. **Explain from measured facts** uses constrained verbalization of the measured prediction, position target and strongest occlusion. Choose Accessible or Scientific language; once execution is revealed, Replay also offers an outcome explanation grounded in the actual fill and equity change. Rule-based players have target explanations without fabricated probabilities. The generator orders the supplied facts and the result identifies its source. Failed validation or an unavailable runtime returns a labelled deterministic template. No model file or real market dataset is bundled.
