@@ -11,6 +11,7 @@ Protocol (docs/training_audit.md):
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -506,7 +507,9 @@ def export(
         profile=profile.profile_id,
         dataset=hashlib.sha256(frame.to_csv().encode()).hexdigest(),
         checkpoint=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
-        commit=subprocess.check_output(
+        # A copy without .git (e.g. a remote GPU server) gets the source commit.
+        commit=os.environ.get("MARKETGPT_COMMIT")
+        or subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=Path(__file__).parent, text=True
         ).strip(),
         curves=[
@@ -543,7 +546,11 @@ if __name__ == "__main__":
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--epochs", type=int, default=8)
     parser.add_argument("--model", choices=["MLP", "Transformer"], default="MLP")
-    parser.add_argument("--device", default="cpu", help="cpu or cuda[:N] (Transformer only)")
+    parser.add_argument(
+        "--device",
+        default="cpu",
+        help="cpu, auto (best GPU, else CPU) or cuda[:N] (Transformer only)",
+    )
     parser.add_argument(
         "--pooled", action="store_true", help="also train on every CSV next to --csv"
     )

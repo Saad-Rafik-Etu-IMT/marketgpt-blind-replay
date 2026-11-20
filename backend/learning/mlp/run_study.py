@@ -2,7 +2,7 @@
 
 Headless usage (e.g. on a GPU server, from ``backend/``):
 
-    python learning/mlp/run_study.py <study_folder> [--device cuda]
+    python learning/mlp/run_study.py <study_folder> [--device auto]
 
 ``<study_folder>/config.json`` holds the study specification written by the
 API (``source``, ``csv``, ``models``, ``variants``, ``seeds``, ``epochs`` and
@@ -135,6 +135,10 @@ def run(folder, device=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", type=Path, help="study folder containing config.json")
-    parser.add_argument("--device", default=None, help="cpu or cuda[:N] (Transformer only)")
+    parser.add_argument(
+        "--device",
+        default=None,
+        help="cpu, auto (best GPU, else CPU) or cuda[:N] (Transformer only)",
+    )
     args = parser.parse_args()
     run(args.folder, args.device)

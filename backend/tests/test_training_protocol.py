@@ -157,3 +157,21 @@ def test_cuda_request_fails_fast_without_a_usable_gpu(mods):
     if not torch.cuda.is_available():
         with pytest.raises(RuntimeError, match="CUDA"):
             resolve("cuda")
+
+
+def test_auto_device_falls_back_to_cpu_without_a_usable_gpu(mods, monkeypatch):
+    torch = pytest.importorskip("torch")
+    resolve = import_module("transformer_reference").resolve_device
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    assert resolve("auto").type == "cpu"
+    with pytest.raises(RuntimeError, match="CUDA"):
+        resolve("cuda")
+
+
+def test_gpu_arch_check_accepts_older_minor_kernels(mods):
+    runs_on = import_module("transformer_reference").build_runs_on
+    cu118 = ["sm_37", "sm_50", "sm_60", "sm_70", "sm_75", "sm_80", "sm_86", "sm_90"]
+    assert runs_on(cu118, 5, 2)  # Tesla M60/M40 use the sm_50 kernels
+    assert not runs_on(["sm_80", "sm_90"], 5, 2)
+    assert runs_on(["compute_70"], 8, 6)  # PTX is JIT-compiled for newer cards
+    assert not runs_on(["compute_90"], 5, 2)

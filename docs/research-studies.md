@@ -29,10 +29,25 @@ The worker runs without the UI on any study folder that has a `config.json` (for
 
 ```bash
 cd backend
-python learning/mlp/run_study.py data/studies/<uuid> --device cuda   # or cpu
+python learning/mlp/run_study.py data/studies/<uuid> --device auto   # or cpu, cuda[:N]
 ```
 
-`--device` only affects the Transformer; the NumPy MLP runs on CPU. A CUDA request fails immediately if the installed PyTorch build has no kernels for the card. Older Tesla cards such as the M60 and M40 (compute capability 5.2) are not in recent PyTorch wheels; check with `python -c "import torch; print(torch.cuda.get_arch_list())"` and look for `sm_52`.
+`--device` only affects the Transformer; the NumPy MLP runs on CPU. `auto` uses the usable GPU with the most free memory and falls back to CPU when no GPU is visible or none can run, writing the reason to `worker.log`. An explicit `cuda[:N]` request fails immediately instead. Older Tesla cards such as the M60 and M40 (compute capability 5.2) are not in recent PyTorch wheels; `python learning/mlp/transformer_reference.py auto` prints the build's architectures (look for `sm_52`) and the device it would pick.
+
+### Remote GPU server over SSH
+
+`remote-gpu.ps1` (repository root) trains on a password-protected SSH server and brings results back into the local UI. Passwords are typed at the `ssh` prompt and never stored.
+
+```powershell
+.\remote-gpu.ps1 -Setup -Server user@host   # once: SSH key, code, ~/marketgpt-blind-replay/.venv, CUDA 11.8 torch
+$env:MARKETGPT_GPU = 'user@host'            # or pass -Server every time
+.\remote-gpu.ps1 -Probe                     # selected device and current GPU load
+.\remote-gpu.ps1 -Source SPY -Models MLP,Transformer -Epochs 20   # prints a study id
+.\remote-gpu.ps1 -Status <id>
+.\remote-gpu.ps1 -Fetch <id>                # copies results into backend/data/studies/<id>
+```
+
+A run creates the study folder locally, uploads the backend code, the study and its CSV (or every local ETF with `-Pooled`), and starts the worker under `nohup` so closing the connection does not stop it. Each run uploads the current code, so the server always trains with your local version. The default `-Device auto` keeps the run going on CPU when the GPUs are unusable. The local page shows the study as interrupted until you fetch it.
 
 ## Historical validation example
 
