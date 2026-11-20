@@ -35,7 +35,11 @@ import {
   EvaluationView,
   ReplayView,
 } from "@/components/research/LaboratoryResults";
-import { LinePlot, PlotFrame } from "@/components/research/ScientificPlot";
+import {
+  LinePlot,
+  PlotFrame,
+  ChartSync,
+} from "@/components/research/ScientificPlot";
 
 const running = (state?: string) => state === "queued" || state === "running";
 
@@ -444,6 +448,7 @@ export default function Laboratory() {
           <CampaignForm
             catalogue={catalogue.data}
             sources={sources.data}
+            existingSpec={detail.data?.spec}
             onCreated={(newId) => {
               refresh();
               navigate("Training", newId, "");
@@ -462,6 +467,15 @@ export default function Laboratory() {
             run={evidenceRun}
             autoEvaluating={detail.data?.status.evaluation_state === "running"}
             explanation={active === "Explainability"}
+            runs={runs.data ?? []}
+            onReplayCase={(row) =>
+              patch({
+                tab: "Replay",
+                asset: row.asset,
+                decisionDate: row.date,
+                cursor: null,
+              })
+            }
           />
         ) : (
           <section className="bench-panel">
@@ -478,7 +492,8 @@ export default function Laboratory() {
             part={part}
             asset={asset}
             initialCursor={Number(params.get("cursor") ?? 0)}
-            onCursor={(cursor) => patch({ cursor })}
+            onCursor={(cursor) => patch({ cursor, decisionDate: null })}
+            inspectDate={params.get("decisionDate") ?? undefined}
             runs={runs.data ?? []}
             opponent={params.get("opponent") ?? ""}
             onOpponent={(opponent) => patch({ opponent: opponent || null })}
@@ -738,42 +753,48 @@ function DataView({
                 </select>
               </label>
             )}
-            {data.adjusted_close && (
-              <LinePlot
-                title="Aligned underlying market history"
-                xLabel="Session"
-                yLabel="Adjusted close"
-                formatX={(v) => data.dates[Math.round(v)] ?? ""}
-                series={[
-                  {
-                    name: "Adjusted close",
-                    points: data.adjusted_close.flatMap((y, x) =>
-                      y === null ? [] : [{ x, y }],
-                    ),
-                  },
-                ]}
-              />
-            )}
-            <div className="lab-two">
-              <LinePlot
-                title={`${data.columns[columnIndex]} · development history`}
-                xLabel="Session"
-                yLabel={description?.units}
-                formatX={(v) => data.dates[Math.round(v)]?.slice(5) ?? ""}
-                series={[
-                  {
-                    name: humanLabel(data.columns[columnIndex]),
-                    points: values,
-                  },
-                ]}
-              />
-              <LinePlot
-                title="Observed feature distribution · 12 bins"
-                xLabel="Feature value"
-                yLabel="Count"
-                series={[{ name: "Frequency", points: bins, dots: true }]}
-              />
-            </div>
+            <ChartSync key={source + feature}>
+              {data.adjusted_close && (
+                <LinePlot
+                  title="Aligned underlying market history"
+                  sync
+                  xDomain={[0, Math.max(1, data.dates.length - 1)]}
+                  xLabel="Session"
+                  yLabel="Adjusted close"
+                  formatX={(v) => data.dates[Math.round(v)] ?? ""}
+                  series={[
+                    {
+                      name: "Adjusted close",
+                      points: data.adjusted_close.flatMap((y, x) =>
+                        y === null ? [] : [{ x, y }],
+                      ),
+                    },
+                  ]}
+                />
+              )}
+              <div className="lab-two">
+                <LinePlot
+                  title={`${data.columns[columnIndex]} · development history`}
+                  sync
+                  xDomain={[0, Math.max(1, data.dates.length - 1)]}
+                  xLabel="Session"
+                  yLabel={description?.units}
+                  formatX={(v) => data.dates[Math.round(v)]?.slice(5) ?? ""}
+                  series={[
+                    {
+                      name: humanLabel(data.columns[columnIndex]),
+                      points: values,
+                    },
+                  ]}
+                />
+                <LinePlot
+                  title="Observed feature distribution · 12 bins"
+                  xLabel="Feature value"
+                  yLabel="Count"
+                  series={[{ name: "Frequency", points: bins, dots: true }]}
+                />
+              </div>
+            </ChartSync>
           </>
         )}
         {correlation.data && (

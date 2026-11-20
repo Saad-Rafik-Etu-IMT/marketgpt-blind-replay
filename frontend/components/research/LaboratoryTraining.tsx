@@ -15,7 +15,7 @@ import {
   Status,
   numberText,
 } from "@/lib/research/laboratory";
-import { LinePlot, plotColors } from "./ScientificPlot";
+import { LinePlot, PlotFrame, plotColors } from "./ScientificPlot";
 import { humanLabel, runLabel } from "@/lib/research/product-context";
 
 const initial: Spec = {
@@ -67,10 +67,12 @@ export function CampaignForm({
   catalogue,
   sources,
   onCreated,
+  existingSpec,
 }: {
   catalogue: Catalogue;
   sources: Source[];
   onCreated: (id: string) => void;
+  existingSpec?: Spec;
 }) {
   const [spec, set] = useState<Spec>(initial);
   const [template, setTemplate] = useState("");
@@ -135,6 +137,26 @@ export function CampaignForm({
         </div>
         <span className="bench-badge">Development only</span>
       </div>
+      {existingSpec && (
+        <button
+          className="bench-button"
+          disabled={busy}
+          onClick={() => {
+            revision.current++;
+            set({
+              ...existingSpec,
+              name: existingSpec.name.slice(0, 68) + " copy",
+              report_validation: false,
+            });
+            setEstimate(undefined);
+            setEstimateRevision(-1);
+            setTemplate("");
+            setStep(0);
+          }}
+        >
+          Duplicate selected campaign configuration
+        </button>
+      )}
       <ol className="wizard-steps" aria-label="Campaign setup progress">
         {steps.map((name, i) => (
           <li key={name}>
@@ -357,14 +379,17 @@ export function CampaignForm({
                 return (
                   <article key={preset}>
                     <h4>{humanLabel(preset)}</h4>
-                    <div className="architecture-flow">
-                      <span>Inputs</span>
-                      {hidden?.map((n, i) => <span key={i}>{n}</span>)}
-                      {typeof info?.architecture === "string" && (
-                        <span>{info.architecture}</span>
-                      )}
-                      <span>{spec.targets.length} target head(s)</span>
-                    </div>
+                    <ArchitectureDiagram
+                      hidden={hidden ?? []}
+                      heads={spec.targets.length}
+                      activation={
+                        typeof info?.architecture === "object" &&
+                        "activation" in info.architecture
+                          ? String(info.architecture.activation)
+                          : undefined
+                      }
+                      transformer={typeof info?.architecture === "string"}
+                    />
                     <p className="muted">
                       Exact input counts and trainable parameters are estimated
                       during review.
@@ -688,6 +713,119 @@ export function LossPlot({ history }: { history: Epoch[] }) {
   );
 }
 
+function ArchitectureDiagram({
+  hidden,
+  heads,
+  inputs,
+  activation,
+  transformer = false,
+}: {
+  hidden: number[];
+  heads: number;
+  inputs?: number;
+  activation?: string;
+  transformer?: boolean;
+}) {
+  const [chosen, setSelected] = useState(0);
+  const layers = [
+    { label: "Inputs", width: inputs ?? null },
+    ...hidden.map((width, i) => ({ label: `Hidden ${i + 1}`, width })),
+    ...(transformer ? [{ label: "Attention encoder", width: null }] : []),
+    { label: "Output heads", width: heads },
+  ];
+  const selected = Math.min(chosen, layers.length - 1);
+  const layout = layers.map((l, i) => ({
+    x: 50 + (600 * i) / (layers.length - 1),
+    nodes: Array.from(
+      { length: Math.min(6, l.width ?? 4) },
+      (_, j) => 57 + (j * 84) / Math.max(1, Math.min(6, l.width ?? 4) - 1),
+    ),
+  }));
+  return (
+    <div>
+      <PlotFrame title="Model architecture · schematic" height={200}>
+        {layout
+          .slice(1)
+          .flatMap((l, i) =>
+            l.nodes.flatMap((y, j) =>
+              layout[i].nodes.map((from, k) => (
+                <line
+                  key={`${i}-${j}-${k}`}
+                  x1={layout[i].x}
+                  x2={l.x}
+                  y1={from}
+                  y2={y}
+                  stroke="var(--line)"
+                  opacity=".7"
+                />
+              )),
+            ),
+          )}
+        {layout.map((l, i) => (
+          <g key={i}>
+            {l.nodes.map((y, j) => (
+              <circle
+                key={j}
+                cx={l.x}
+                cy={y}
+                r="6"
+                fill={i === selected ? plotColors[0] : plotColors[2]}
+              />
+            ))}
+            <text
+              x={l.x}
+              y="35"
+              fontSize="10"
+              textAnchor="middle"
+              fill="var(--fg)"
+            >
+              {layers[i].label}
+            </text>
+            <text
+              x={l.x}
+              y="166"
+              fontSize="11"
+              textAnchor="middle"
+              fill="var(--muted)"
+            >
+              {layers[i].width ?? "—"}
+            </text>
+          </g>
+        ))}
+        <text
+          x="350"
+          y="190"
+          textAnchor="middle"
+          fontSize="10"
+          fill="var(--muted)"
+        >
+          Representative nodes · exact widths in labels
+        </text>
+      </PlotFrame>
+      <div className="bench-actions">
+        {layers.map((l, i) => (
+          <button
+            key={i}
+            className="bench-button"
+            aria-pressed={selected === i}
+            onClick={() => setSelected(i)}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted">
+        {layers[selected].label}:{" "}
+        {layers[selected].width ?? "depends on registered feature contract"} ·{" "}
+        {selected > 0 && selected < layers.length - 1
+          ? (activation ??
+            (transformer ? "attention" : "activation defined by preset"))
+          : "input/output representation"}
+      </p>
+    </div>
+  );
+}
+
 export function TrainingMonitor({
   id,
   status,
@@ -788,10 +926,51 @@ export function TrainingMonitor({
         </div>
       )}
       <p className="muted">
-        Actual device: {selected.data?.device ?? "not yet recorded"} · CPU/GPU
-        utilization and live remaining-time telemetry are not provided by this
-        worker.
+        Actual device: {selected.data?.device ?? "not yet recorded"} · GPU
+        utilization is not instrumented.
       </p>
+      {status.current?.elapsed_seconds !== undefined ||
+      selected.data?.telemetry?.length ? (
+        <div className="metric-strip">
+          <div>
+            <span>Elapsed (s)</span>
+            <strong>
+              {numberText(
+                status.current?.elapsed_seconds ?? selected.data?.seconds,
+                1,
+              )}
+            </strong>
+          </div>
+          <div>
+            <span>Process CPU (% of one core)</span>
+            <strong>
+              {numberText(
+                status.current?.cpu_core_percent ??
+                  selected.data?.telemetry?.at(-1)?.cpu_core_percent,
+                1,
+              )}
+            </strong>
+          </div>
+          <div>
+            <span>Peak RSS MiB (when supported)</span>
+            <strong>
+              {numberText(
+                status.current?.peak_rss_mib ??
+                  selected.data?.telemetry?.at(-1)?.peak_rss_mib,
+                1,
+              )}
+            </strong>
+          </div>
+          <div>
+            <span>Estimated remaining run time (s)</span>
+            <strong>
+              {status.state === "running"
+                ? numberText(status.current?.estimated_remaining_seconds, 1)
+                : "—"}
+            </strong>
+          </div>
+        </div>
+      ) : null}
       {queue.filter((q) => ["queued", "running"].includes(q.state)).length >
         0 && (
         <div className="queue-strip">
@@ -841,6 +1020,82 @@ export function TrainingMonitor({
       </div>
       {error && <p role="alert">{error}</p>}
       <LossPlot history={progress.data?.history ?? []} />
+      {progress.data?.history.length
+        ? (() => {
+            const history = progress.data.history,
+              last = history.at(-1)!,
+              best = history.reduce((a, b) =>
+                b.select_loss < a.select_loss ? b : a,
+              );
+            return (
+              <div className="finding-card">
+                <strong>Selection diagnostics</strong>
+                <p>
+                  Best measured selection epoch {best.epoch} · loss{" "}
+                  {numberText(best.select_loss)}. Current selection–training gap{" "}
+                  {numberText(last.select_loss - last.train_loss)}.
+                </p>
+                {history.length > 2 &&
+                  last.select_loss > best.select_loss &&
+                  last.train_loss < best.train_loss && (
+                    <p className="bench-notice">
+                      Selection loss has risen while training loss fell after
+                      its minimum. Possible overfitting; not a statistical
+                      diagnosis.
+                    </p>
+                  )}
+                {selected.data?.stopped_early && (
+                  <p>
+                    Early stopping retained epoch {selected.data.best_epoch}.
+                  </p>
+                )}
+              </div>
+            );
+          })()
+        : null}
+      {selected.data?.architecture && (
+        <details>
+          <summary>Explore retained architecture</summary>
+          <ArchitectureDiagram
+            hidden={
+              Array.isArray(selected.data.architecture.hidden)
+                ? (selected.data.architecture.hidden as number[])
+                : []
+            }
+            inputs={selected.data.inputs}
+            heads={
+              Array.isArray(selected.data.architecture.heads)
+                ? selected.data.architecture.heads.length
+                : 1
+            }
+            activation={
+              typeof selected.data.architecture.activation === "string"
+                ? selected.data.architecture.activation
+                : undefined
+            }
+            transformer={!!selected.data.architecture.encoder}
+          />
+        </details>
+      )}
+      {selected.data?.telemetry?.length ? (
+        <details>
+          <summary>Recorded worker telemetry</summary>
+          <LinePlot
+            title="Training elapsed time"
+            xLabel="Epoch"
+            yLabel="Seconds"
+            series={[
+              {
+                name: "Elapsed",
+                points: selected.data.telemetry.map((t) => ({
+                  x: t.epoch,
+                  y: t.elapsed_seconds,
+                })),
+              },
+            ]}
+          />
+        </details>
+      ) : null}
       {progress.data?.history.some(
         (h) => typeof h.learning_rate === "number",
       ) && (

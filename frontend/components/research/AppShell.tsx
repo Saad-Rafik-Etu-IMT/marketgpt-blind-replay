@@ -79,6 +79,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState("light");
   const [themeError, setThemeError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [stacked, setStacked] = useState(false);
+  const [split, setSplit] = useState(50);
+  const [command, setCommand] = useState("");
+  const commandDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    try {
+      setCollapsed(
+        localStorage.getItem("blind-replay.sidebar") === "collapsed",
+      );
+      setStacked(localStorage.getItem("blind-replay.layout") === "stacked");
+      const saved = Number(localStorage.getItem("blind-replay.split") ?? 50);
+      if (Number.isFinite(saved) && saved >= 30 && saved <= 70) setSplit(saved);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    if (!laboratory || present) return;
+    function key(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCommand("");
+        if (!commandDialog.current?.open) commandDialog.current?.showModal();
+      }
+    }
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [laboratory, present]);
+  function preference(key: string, value: string) {
+    try {
+      localStorage.setItem("blind-replay." + key, value);
+    } catch {}
+  }
   const navigation = useRef<HTMLElement>(null);
   useEffect(() => {
     const nav = navigation.current;
@@ -131,7 +163,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   return (
     <div
-      className={`bench-shell ${laboratory ? "product-shell" : ""} ${present ? "presentation-shell" : ""}`}
+      className={`bench-shell ${laboratory ? "product-shell" : ""} ${present ? "presentation-shell" : ""} ${collapsed && !present ? "sidebar-collapsed" : ""} ${stacked ? "workspace-stacked" : ""}`}
+      style={
+        {
+          "--workspace-split": split / 100 + "fr",
+          "--workspace-other": 1 - split / 100 + "fr",
+        } as React.CSSProperties
+      }
     >
       <a href="#main-content" className="skip-link">
         Skip to content
@@ -269,6 +307,107 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     : "No Data · Real mode"}
           </span>
         </header>
+        {laboratory && !present && (
+          <div className="workspace-tools bench-actions">
+            <button
+              className="bench-button"
+              onClick={() => {
+                setCommand("");
+                commandDialog.current?.showModal();
+              }}
+            >
+              Commands · Ctrl K
+            </button>
+            <button
+              className="bench-button"
+              aria-pressed={collapsed}
+              onClick={() => {
+                setCollapsed(!collapsed);
+                preference("sidebar", !collapsed ? "collapsed" : "expanded");
+              }}
+            >
+              {" "}
+              {collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            </button>
+            <button
+              className="bench-button"
+              aria-pressed={stacked}
+              onClick={() => {
+                setStacked(!stacked);
+                preference("layout", !stacked ? "stacked" : "side-by-side");
+              }}
+            >
+              {stacked ? "Stacked layout" : "Side-by-side layout"}
+            </button>
+            {!stacked && (
+              <label className="workspace-split">
+                Panel split{" "}
+                <input
+                  aria-label="Panel split"
+                  type="range"
+                  min={30}
+                  max={70}
+                  value={split}
+                  onChange={(e) => {
+                    setSplit(Number(e.target.value));
+                    preference("split", e.target.value);
+                  }}
+                />
+              </label>
+            )}
+            <button
+              className="bench-button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(window.location.href);
+                } catch {}
+              }}
+            >
+              Copy workspace link
+            </button>
+          </div>
+        )}
+        <dialog
+          ref={commandDialog}
+          className="command-dialog"
+          aria-label="Research command palette"
+        >
+          <h2>Go to laboratory</h2>
+          <input
+            autoFocus
+            placeholder="Search workspace…"
+            aria-label="Search commands"
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+          />
+          <nav>
+            {laboratories
+              .filter((t) => t.toLowerCase().includes(command.toLowerCase()))
+              .map((t) => (
+                <Link
+                  key={t}
+                  href={labHref(params, { tab: t, mode: null, step: null })}
+                  onClick={() => commandDialog.current?.close()}
+                >
+                  {t}
+                </Link>
+              ))}
+            {"presentation".includes(command.toLowerCase()) && (
+              <Link
+                href={labHref(params, { mode: "present", step: 0 })}
+                onClick={() => commandDialog.current?.close()}
+              >
+                Presentation
+              </Link>
+            )}
+          </nav>
+          <button
+            className="bench-button"
+            onClick={() => commandDialog.current?.close()}
+          >
+            Close
+          </button>
+        </dialog>
         {!comparison && !replay && (
           <section aria-label="Research data source" className="source-bar">
             <div className="bench-actions">
