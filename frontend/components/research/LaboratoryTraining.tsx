@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Catalogue,
@@ -9,12 +9,14 @@ import {
   laboratoryApi,
   labelText,
   Run,
+  Campaign,
   Source,
   Spec,
   Status,
   numberText,
 } from "@/lib/research/laboratory";
 import { LinePlot, plotColors } from "./ScientificPlot";
+import { humanLabel, runLabel } from "@/lib/research/product-context";
 
 const initial: Spec = {
   name: "New research campaign",
@@ -54,7 +56,7 @@ function MultiSelect({
               )
             }
           />
-          {labelText(item.id)}
+          {humanLabel(item.id)}
         </label>
       ))}
     </fieldset>
@@ -75,16 +77,32 @@ export function CampaignForm({
   const [estimate, setEstimate] = useState<Estimate>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const steps = ["Objective", "Data & inputs", "Models", "Budget", "Review"];
+  const [step, setStep] = useState(0);
+  const revision = useRef(0);
+  const [estimateRevision, setEstimateRevision] = useState(-1);
   function patch(values: Partial<Spec>) {
+    revision.current++;
     set((old) => ({ ...old, ...values }));
     setEstimate(undefined);
+    setError("");
   }
   const profile = catalogue.experiment_profiles.find(
     (p) => p.id === spec.profile,
   );
   async function action(start: boolean) {
+    const issue = configurationError(spec, catalogue, sources, 4);
+    if (issue) {
+      setError(issue);
+      return;
+    }
+    if (start && estimateRevision !== revision.current) {
+      setError("The configuration changed. Estimate the exact protocol again.");
+      return;
+    }
     setBusy(true);
     setError("");
+    const currentRevision = revision.current;
     try {
       if (start) {
         const result = await laboratoryApi<{ id: string }>(
@@ -92,7 +110,16 @@ export function CampaignForm({
           spec,
         );
         onCreated(result.id);
-      } else setEstimate(await laboratoryApi<Estimate>("/estimate", spec));
+        setEstimate(undefined);
+        setEstimateRevision(-1);
+        setStep(0);
+      } else {
+        const result = await laboratoryApi<Estimate>("/estimate", spec);
+        if (currentRevision === revision.current) {
+          setEstimate(result);
+          setEstimateRevision(currentRevision);
+        }
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -103,269 +130,527 @@ export function CampaignForm({
     <section className="bench-panel lab-form">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Design</p>
+          <p className="eyebrow">Experiment builder</p>
           <h2>Configure a campaign</h2>
         </div>
         <span className="bench-badge">Development only</span>
       </div>
-      <div className="lab-two">
-        <label>
-          Research recipe
-          <select
-            value={template}
-            onChange={(e) => {
-              setTemplate(e.target.value);
-              const selected = catalogue.campaigns.find(
-                (c) => c.id === e.target.value,
-              );
-              if (selected) {
-                set(selected.spec);
-                setEstimate(undefined);
-              }
-            }}
-          >
-            <option value="">Custom campaign</option>
-            {catalogue.campaigns.map((c) => (
-              <option value={c.id} key={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Campaign name
-          <input
-            value={spec.name}
-            onChange={(e) => patch({ name: e.target.value })}
-          />
-        </label>
-        <label>
-          Training profile
-          <select
-            value={spec.profile}
-            onChange={(e) => patch({ profile: e.target.value, epochs: null })}
-          >
-            {catalogue.experiment_profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.id} · {p.seeds} seed(s)
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Maximum epochs
-          <input
-            type="number"
-            min={1}
-            max={profile?.max_epochs ?? 60}
-            value={spec.epochs ?? profile?.max_epochs ?? 10}
-            onChange={(e) => patch({ epochs: Number(e.target.value) })}
-          />
-        </label>
-        <label>
-          Time budget (minutes)
-          <input
-            type="number"
-            min={1}
-            max={1440}
-            placeholder="Worker default"
-            value={spec.max_minutes ?? ""}
-            onChange={(e) =>
-              patch({
-                max_minutes: e.target.value ? Number(e.target.value) : null,
-              })
-            }
-          />
-        </label>
-        <label>
-          Automatic evaluation
-          <select
-            value={spec.auto_evaluate ? "yes" : "no"}
-            onChange={(e) => patch({ auto_evaluate: e.target.value === "yes" })}
-          >
-            <option value="yes">Yes · inner validation only</option>
-            <option value="no">Manual</option>
-          </select>
-        </label>
-      </div>
-      {template && (
-        <p className="bench-notice">
-          {catalogue.campaigns.find((c) => c.id === template)?.hypothesis}
-        </p>
-      )}
-      <MultiSelect
-        title="Datasets"
-        choices={sources
-          .filter((s) => s.status === "ok")
-          .map((s) => ({ id: s.source, description: s.kind }))}
-        selected={spec.sources}
-        change={(items) => {
-          const last = items.at(-1);
-          patch({
-            sources: last?.startsWith("synthetic")
-              ? [last]
-              : items.filter((x) => !x.startsWith("synthetic")),
-          });
-        }}
-      />
-      <MultiSelect
-        title="Feature profiles"
-        choices={catalogue.feature_profiles.filter((p) => p.available)}
-        selected={spec.feature_profiles}
-        change={(feature_profiles) => patch({ feature_profiles })}
-      />
-      <MultiSelect
-        title="Model architectures"
-        choices={Object.keys(catalogue.presets).map((id) => ({ id }))}
-        selected={spec.presets}
-        change={(presets) => patch({ presets })}
-      />
-      {!catalogue.transformer_available && (
-        <p className="muted">
-          Optional PyTorch is not installed. Install it to enable the reference
-          Transformer.
-        </p>
-      )}
-      {spec.presets.some((p) => p.startsWith("transformer")) && (
-        <label className="lab-field">
-          Transformer device
-          <select
-            value={spec.device ?? "cpu"}
-            onChange={(e) => patch({ device: e.target.value })}
-          >
-            <option value="cpu">CPU</option>
-            <option value="auto">Auto · compatible GPU or CPU</option>
-            <option value="cuda">CUDA · require GPU</option>
-          </select>
-        </label>
-      )}
-      <MultiSelect
-        title="Prediction targets"
-        choices={catalogue.targets.map((t) => ({
-          id: t.id,
-          description: t.interpretation,
-        }))}
-        selected={spec.targets}
-        change={(targets) => patch({ targets })}
-      />
-      <details className="supporting-details">
-        <summary>Search space and optimization</summary>
-        <div className="lab-two">
-          <label>
-            Search method
-            <select
-              value={spec.search?.method ?? "none"}
-              onChange={(e) =>
-                patch({
-                  search:
-                    e.target.value === "none"
-                      ? null
-                      : {
-                          method: e.target.value as "random" | "grid",
-                          budget: 3,
-                        },
-                })
-              }
+      <ol className="wizard-steps" aria-label="Campaign setup progress">
+        {steps.map((name, i) => (
+          <li key={name}>
+            <button
+              className="wizard-step"
+              aria-current={i === step ? "step" : undefined}
+              disabled={busy || i > step}
+              onClick={() => {
+                setStep(i);
+                setError("");
+              }}
             >
-              <option value="none">Preset comparison</option>
-              <option value="random">Bounded random search</option>
-              <option value="grid">Bounded grid</option>
-            </select>
-          </label>
-          {spec.search && (
-            <>
+              <b>{i + 1}</b>
+              <span>{name}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+      <fieldset disabled={busy} className="wizard-body">
+        {step === 0 && (
+          <>
+            <h3>01 · What do you want to investigate?</h3>
+            <p className="muted">
+              Start from a predeclared research recipe or create a custom
+              comparison.
+            </p>
+            <div className="lab-two">
               <label>
-                Candidate budget
+                Research recipe
+                <select
+                  value={template}
+                  onChange={(e) => {
+                    setTemplate(e.target.value);
+                    const selected = catalogue.campaigns.find(
+                      (c) => c.id === e.target.value,
+                    );
+                    if (selected) {
+                      revision.current++;
+                      set(selected.spec);
+                      setEstimate(undefined);
+                      setError("");
+                    }
+                  }}
+                >
+                  <option value="">Custom campaign</option>
+                  {catalogue.campaigns.map((c) => (
+                    <option value={c.id} key={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Campaign name
+                <input
+                  value={spec.name}
+                  onChange={(e) => patch({ name: e.target.value })}
+                />
+              </label>
+            </div>
+            {template && (
+              <p className="bench-notice">
+                {catalogue.campaigns.find((c) => c.id === template)?.hypothesis}
+              </p>
+            )}
+          </>
+        )}
+        {step === 3 && (
+          <>
+            <h3>04 · Control the research budget</h3>
+            <div className="lab-two">
+              <label>
+                Training profile
+                <select
+                  value={spec.profile}
+                  onChange={(e) =>
+                    patch({ profile: e.target.value, epochs: null })
+                  }
+                >
+                  {catalogue.experiment_profiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.id} · {p.seeds} seed(s)
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Maximum epochs
                 <input
                   type="number"
                   min={1}
-                  max={60}
-                  value={spec.search.budget}
+                  max={profile?.max_epochs ?? 60}
+                  value={spec.epochs ?? profile?.max_epochs ?? 10}
+                  onChange={(e) => patch({ epochs: Number(e.target.value) })}
+                />
+              </label>
+              <label>
+                Time budget (minutes)
+                <input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  placeholder="Worker default"
+                  value={spec.max_minutes ?? ""}
                   onChange={(e) =>
                     patch({
-                      search: {
-                        ...spec.search!,
-                        budget: Number(e.target.value),
-                      },
+                      max_minutes: e.target.value
+                        ? Number(e.target.value)
+                        : null,
                     })
                   }
                 />
               </label>
-              {(
-                [
-                  "learning_rates",
-                  "weight_decays",
-                  "dropouts",
-                  "batch_sizes",
-                ] as const
-              ).map((key) => (
-                <label key={key}>
-                  {labelText(key)}
-                  <input
-                    placeholder="Use defaults"
-                    defaultValue={spec.search?.[key]?.join(",") ?? ""}
-                    onBlur={(e) =>
-                      patch({
-                        search: {
-                          ...spec.search!,
-                          [key]: e.target.value.trim()
-                            ? e.target.value.split(",").map(Number)
-                            : undefined,
-                        },
-                      })
-                    }
-                  />
-                </label>
-              ))}
-            </>
-          )}
-        </div>
-        <p className="muted">
-          Each candidate uses the same selected feature profiles and seeds.
-          Maximum {catalogue.max_runs} runs per campaign.
-        </p>
-      </details>
-      {estimate && (
-        <div className="metric-strip">
-          <div>
-            <span>Run count</span>
-            <strong>{estimate.runs}</strong>
-          </div>
-          <div>
-            <span>Estimated training time</span>
-            <strong>{numberText(estimate.estimated_seconds)} s</strong>
-          </div>
-          <div>
-            <span>Budget</span>
-            <strong>
-              {estimate.within_budget ? "Within limit" : "Exceeds limit"}
-            </strong>
-          </div>
-        </div>
-      )}
+              <label>
+                Automatic evaluation
+                <select
+                  value={spec.auto_evaluate ? "yes" : "no"}
+                  onChange={(e) =>
+                    patch({ auto_evaluate: e.target.value === "yes" })
+                  }
+                >
+                  <option value="yes">Yes · inner validation only</option>
+                  <option value="no">Manual</option>
+                </select>
+              </label>
+            </div>
+          </>
+        )}
+        {step === 1 && (
+          <>
+            <h3>02 · What information is available?</h3>
+            <MultiSelect
+              title="Datasets"
+              choices={sources
+                .filter((s) => s.status === "ok")
+                .map((s) => ({ id: s.source, description: s.kind }))}
+              selected={spec.sources}
+              change={(items) => {
+                const added = items.find((x) => !spec.sources.includes(x));
+                patch({
+                  sources: added?.startsWith("synthetic")
+                    ? [added]
+                    : added
+                      ? items.filter((x) => !x.startsWith("synthetic"))
+                      : items,
+                });
+              }}
+            />
+            <MultiSelect
+              title="Feature profiles"
+              choices={catalogue.feature_profiles.filter((p) => p.available)}
+              selected={spec.feature_profiles}
+              change={(feature_profiles) => patch({ feature_profiles })}
+            />
+            <MultiSelect
+              title="Prediction targets"
+              choices={catalogue.targets.map((t) => ({
+                id: t.id,
+                description: t.interpretation,
+              }))}
+              selected={spec.targets}
+              change={(targets) => patch({ targets })}
+            />
+            <div className="wizard-selection">
+              {catalogue.feature_profiles
+                .filter((p) => spec.feature_profiles.includes(p.id))
+                .map((p) => (
+                  <p key={p.id}>
+                    <strong>{humanLabel(p.id)}</strong> ·{" "}
+                    {p.column_count ?? "—"} inputs · {p.description}
+                  </p>
+                ))}
+              {catalogue.targets
+                .filter((t) => spec.targets.includes(t.id))
+                .map((t) => (
+                  <p key={t.id}>
+                    <strong>{humanLabel(t.id)}</strong> · {t.interpretation}
+                  </p>
+                ))}
+            </div>
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <h3>03 · Choose comparable model families</h3>
+            <MultiSelect
+              title="Model architectures"
+              choices={Object.keys(catalogue.presets).map((id) => ({ id }))}
+              selected={spec.presets}
+              change={(presets) => patch({ presets })}
+            />
+            {!catalogue.transformer_available && (
+              <p className="muted">
+                Optional PyTorch is not installed. Install it to enable the
+                reference Transformer.
+              </p>
+            )}
+            {spec.presets.some((p) => p.startsWith("transformer")) && (
+              <label className="lab-field">
+                Transformer device
+                <select
+                  value={spec.device ?? "cpu"}
+                  onChange={(e) => patch({ device: e.target.value })}
+                >
+                  <option value="cpu">CPU</option>
+                  <option value="auto">Auto · compatible GPU or CPU</option>
+                  <option value="cuda">CUDA · require GPU</option>
+                </select>
+              </label>
+            )}
+            <div className="architecture-grid">
+              {spec.presets.map((preset) => {
+                const info = catalogue.presets[preset] as
+                  | { architecture?: { hidden?: number[] } | string }
+                  | undefined;
+                const hidden =
+                  typeof info?.architecture === "object"
+                    ? info.architecture.hidden
+                    : undefined;
+                return (
+                  <article key={preset}>
+                    <h4>{humanLabel(preset)}</h4>
+                    <div className="architecture-flow">
+                      <span>Inputs</span>
+                      {hidden?.map((n, i) => <span key={i}>{n}</span>)}
+                      {typeof info?.architecture === "string" && (
+                        <span>{info.architecture}</span>
+                      )}
+                      <span>{spec.targets.length} target head(s)</span>
+                    </div>
+                    <p className="muted">
+                      Exact input counts and trainable parameters are estimated
+                      during review.
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )}
+        {step === 3 && (
+          <details className="supporting-details">
+            <summary>Search space and optimization</summary>
+            <div className="lab-two">
+              <label>
+                Search method
+                <select
+                  value={spec.search?.method ?? "none"}
+                  onChange={(e) =>
+                    patch({
+                      search:
+                        e.target.value === "none"
+                          ? null
+                          : {
+                              method: e.target.value as "random" | "grid",
+                              budget: 3,
+                            },
+                    })
+                  }
+                >
+                  <option value="none">Preset comparison</option>
+                  <option value="random">Bounded random search</option>
+                  <option value="grid">Bounded grid</option>
+                </select>
+              </label>
+              {spec.search && (
+                <>
+                  <label>
+                    Candidate budget
+                    <input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={spec.search.budget}
+                      onChange={(e) =>
+                        patch({
+                          search: {
+                            ...spec.search!,
+                            budget: Number(e.target.value),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                  {(
+                    [
+                      "learning_rates",
+                      "weight_decays",
+                      "dropouts",
+                      "batch_sizes",
+                    ] as const
+                  ).map((key) => (
+                    <label key={key}>
+                      {labelText(key)}
+                      <input
+                        placeholder="Use defaults"
+                        defaultValue={spec.search?.[key]?.join(",") ?? ""}
+                        onBlur={(e) =>
+                          patch({
+                            search: {
+                              ...spec.search!,
+                              [key]: e.target.value.trim()
+                                ? e.target.value.split(",").map(Number)
+                                : undefined,
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                  ))}
+                </>
+              )}
+            </div>
+            <p className="muted">
+              Each candidate uses the same selected feature profiles and seeds.
+              Maximum {catalogue.max_runs} runs per campaign.
+            </p>
+          </details>
+        )}
+        {step === 4 && (
+          <>
+            <h3>05 · Review the exact experiment</h3>
+            <dl className="review-grid">
+              <div>
+                <dt>Campaign</dt>
+                <dd>{spec.name}</dd>
+              </div>
+              <div>
+                <dt>Research profile</dt>
+                <dd>
+                  {humanLabel(spec.profile)} · {profile?.seeds ?? "—"} seeds
+                </dd>
+              </div>
+              <div>
+                <dt>Datasets</dt>
+                <dd>{spec.sources.map(humanLabel).join(", ")}</dd>
+              </div>
+              <div>
+                <dt>Feature profiles</dt>
+                <dd>{spec.feature_profiles.map(humanLabel).join(", ")}</dd>
+              </div>
+              <div>
+                <dt>Models</dt>
+                <dd>{spec.presets.map(humanLabel).join(", ")}</dd>
+              </div>
+              <div>
+                <dt>Targets</dt>
+                <dd>{spec.targets.map(humanLabel).join(", ")}</dd>
+              </div>
+              <div>
+                <dt>Maximum epochs</dt>
+                <dd>{spec.epochs ?? profile?.max_epochs ?? "Default"}</dd>
+              </div>
+              <div>
+                <dt>Search</dt>
+                <dd>
+                  {spec.search
+                    ? `${humanLabel(spec.search.method)} · ${spec.search.budget} candidates`
+                    : "Preset comparison"}
+                </dd>
+              </div>
+            </dl>
+            <p className="bench-notice">
+              Selection and training use development data. Protected final test
+              values will not be evaluated.
+            </p>
+            {estimate && (
+              <div className="metric-strip">
+                <div>
+                  <span>Run count</span>
+                  <strong>{estimate.runs}</strong>
+                </div>
+                <div>
+                  <span>Estimated training time</span>
+                  <strong>{numberText(estimate.estimated_seconds)} s</strong>
+                </div>
+                <div>
+                  <span>Budget</span>
+                  <strong>
+                    {estimate.within_budget ? "Within limit" : "Exceeds limit"}
+                  </strong>
+                </div>
+              </div>
+            )}
+            {estimate?.per_run?.length ? (
+              <details className="supporting-details">
+                <summary>Estimated run parameters</summary>
+                <div className="lab-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Run</th>
+                        <th>Inputs</th>
+                        <th>Parameters</th>
+                        <th>Epochs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {estimate.per_run.map((r) => (
+                        <tr key={r.key}>
+                          <td>{runLabel(r.key)}</td>
+                          <td>{r.inputs}</td>
+                          <td>{numberText(r.parameters, 0)}</td>
+                          <td>{r.epochs}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            ) : null}
+          </>
+        )}
+      </fieldset>
       {error && (
         <p role="alert" className="bench-notice">
           {error}
         </p>
       )}
       <div className="bench-actions">
-        <button
-          className="bench-button"
-          disabled={busy}
-          onClick={() => void action(false)}
-        >
-          Estimate campaign
-        </button>
-        <button
-          className="bench-button primary-action"
-          disabled={busy || !estimate?.within_budget}
-          onClick={() => void action(true)}
-        >
-          Queue campaign
-        </button>
+        {step > 0 && (
+          <button
+            className="bench-button"
+            disabled={busy}
+            onClick={() => {
+              setStep(step - 1);
+              setError("");
+            }}
+          >
+            Previous step
+          </button>
+        )}
+        {step < 4 && (
+          <button
+            className="bench-button primary-action"
+            disabled={busy}
+            onClick={() => {
+              const issue = configurationError(spec, catalogue, sources, step);
+              if (issue) {
+                setError(issue);
+                return;
+              }
+              setError("");
+              setStep(step + 1);
+            }}
+          >
+            Continue
+          </button>
+        )}
+        {step === 4 && (
+          <>
+            <button
+              className="bench-button"
+              disabled={busy}
+              onClick={() => void action(false)}
+            >
+              Estimate campaign
+            </button>
+            <button
+              className="bench-button primary-action"
+              disabled={
+                busy ||
+                !estimate?.within_budget ||
+                estimateRevision !== revision.current
+              }
+              onClick={() => void action(true)}
+            >
+              Queue campaign
+            </button>
+          </>
+        )}
       </div>
     </section>
   );
+}
+
+export function configurationError(
+  spec: Spec,
+  catalogue: Catalogue,
+  sources: Source[],
+  stage: number,
+): string {
+  if (!spec.name.trim()) return "Give this experiment a meaningful name.";
+  if (stage < 1) return "";
+  if (
+    !spec.sources.length ||
+    spec.sources.some(
+      (s) => !sources.some((x) => x.source === s && x.status === "ok"),
+    )
+  )
+    return "Choose at least one available dataset.";
+  if (!spec.feature_profiles.length || !spec.targets.length)
+    return "Select at least one feature profile and prediction target.";
+  if (stage < 2) return "";
+  if (!spec.presets.length) return "Select at least one model architecture.";
+  const transformer = spec.presets.some((p) => p.startsWith("transformer"));
+  if (
+    transformer &&
+    (spec.feature_profiles.join() !== "returns_only_v1" ||
+      spec.targets.join() !== "direction_binary_v1")
+  )
+    return "The reference Transformer requires returns-only inputs and the executed-return direction target. Adjust Data & inputs.";
+  if (transformer && !catalogue.transformer_available)
+    return "Install optional PyTorch to enable the Transformer.";
+  if (stage < 3) return "";
+  const max =
+    catalogue.experiment_profiles.find((p) => p.id === spec.profile)
+      ?.max_epochs ?? 60;
+  if (
+    spec.epochs != null &&
+    (!Number.isInteger(spec.epochs) || spec.epochs < 1 || spec.epochs > max)
+  )
+    return `Use between 1 and ${max} epochs for this profile.`;
+  if (transformer && spec.search)
+    return "Numeric hyperparameter search is MLP-only. Disable search for this Transformer comparison.";
+  return "";
 }
 
 export function LossPlot({ history }: { history: Epoch[] }) {
@@ -410,6 +695,8 @@ export function TrainingMonitor({
   onRefresh,
   run,
   onRun,
+  queue = [],
+  onCampaign,
 }: {
   id: string;
   status: Status;
@@ -417,6 +704,8 @@ export function TrainingMonitor({
   onRefresh: () => void;
   run: string;
   onRun: (key: string) => void;
+  queue?: Campaign[];
+  onCampaign?: (id: string) => void;
 }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -452,11 +741,12 @@ export function TrainingMonitor({
           <p className="eyebrow">Execution</p>
           <h2>Campaign monitor</h2>
         </div>
-        <span className="bench-badge">{labelText(status.state)}</span>
+        <span className="bench-badge">{humanLabel(status.state)}</span>
       </div>
       <p>{status.message}</p>
       <progress
         className="lab-progress"
+        aria-label="Campaign completion"
         value={status.done}
         max={Math.max(1, status.total)}
       />
@@ -482,7 +772,44 @@ export function TrainingMonitor({
           </strong>
         </div>
       </div>
-      {status.current?.run && <p className="muted">{status.current.run}</p>}
+      {status.current?.run && (
+        <p className="muted">{runLabel(status.current.run)}</p>
+      )}
+      {status.current && (
+        <div className="metric-strip">
+          <div>
+            <span>Measured training loss</span>
+            <strong>{numberText(status.current.train_loss)}</strong>
+          </div>
+          <div>
+            <span>Measured selection loss</span>
+            <strong>{numberText(status.current.select_loss)}</strong>
+          </div>
+        </div>
+      )}
+      <p className="muted">
+        Actual device: {selected.data?.device ?? "not yet recorded"} · CPU/GPU
+        utilization and live remaining-time telemetry are not provided by this
+        worker.
+      </p>
+      {queue.filter((q) => ["queued", "running"].includes(q.state)).length >
+        0 && (
+        <div className="queue-strip">
+          <strong>Training queue</strong>
+          {queue
+            .filter((q) => ["queued", "running"].includes(q.state))
+            .map((q) => (
+              <button
+                key={q.id}
+                className="bench-button"
+                aria-pressed={q.id === id}
+                onClick={() => onCampaign?.(q.id)}
+              >
+                {q.name} · {humanLabel(q.state)} · {q.done}/{q.total}
+              </button>
+            ))}
+        </div>
+      )}
       {status.evaluation_state && (
         <p className="muted">Automatic evaluation: {status.evaluation_state}</p>
       )}
@@ -514,6 +841,44 @@ export function TrainingMonitor({
       </div>
       {error && <p role="alert">{error}</p>}
       <LossPlot history={progress.data?.history ?? []} />
+      {progress.data?.history.some(
+        (h) => typeof h.learning_rate === "number",
+      ) && (
+        <details className="supporting-details">
+          <summary>Optimization schedule</summary>
+          <LinePlot
+            title="Recorded learning rate"
+            xLabel="Epoch"
+            yLabel="Learning rate"
+            series={[
+              {
+                name: "Learning rate",
+                points: progress.data.history.flatMap((h) =>
+                  h.learning_rate === undefined
+                    ? []
+                    : [{ x: h.epoch, y: h.learning_rate }],
+                ),
+              },
+            ]}
+          />
+        </details>
+      )}
+      {selected.data && (
+        <details className="supporting-details">
+          <summary>Retained checkpoint and exact hyperparameters</summary>
+          <p>
+            Selected epoch {selected.data.best_epoch ?? "—"} ·{" "}
+            {selected.data.epochs_run ?? "—"} epochs executed ·{" "}
+            {numberText(selected.data.parameter_count, 0)} parameters.
+          </p>
+          {selected.data.training && (
+            <pre className="technical-json">
+              {JSON.stringify(selected.data.training, null, 2)}
+            </pre>
+          )}
+          <code>{selected.data.key}</code>
+        </details>
+      )}
       {runs.length > 0 && (
         <div className="lab-table-scroll">
           <table>
@@ -534,11 +899,11 @@ export function TrainingMonitor({
                       aria-pressed={r.key === run}
                       onClick={() => onRun(r.key)}
                     >
-                      {r.key}
+                      {runLabel(r)}
                     </button>
                   </td>
                   <td>
-                    {r.state}
+                    {humanLabel(r.state)}
                     {r.error && <small>{r.error}</small>}
                   </td>
                   <td>{r.best_epoch ?? "—"}</td>

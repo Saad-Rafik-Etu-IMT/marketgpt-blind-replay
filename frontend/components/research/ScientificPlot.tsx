@@ -29,15 +29,18 @@ export function PlotFrame({
   title,
   children,
   height = 236,
+  controls,
 }: {
   title: string;
   children: React.ReactNode;
   height?: number;
+  controls?: React.ReactNode;
 }) {
   const ref = useRef<SVGSVGElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const [expanded, setExpanded] = useState(false);
-  function download() {
+  const [exportError, setExportError] = useState("");
+  function download(format: "svg" | "png" = "svg") {
     if (!ref.current) return;
     const clone = ref.current.cloneNode(true) as SVGSVGElement;
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
@@ -54,11 +57,43 @@ export function PlotFrame({
         type: "image/svg+xml;charset=utf-8",
       }),
     );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = title.toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".svg";
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    function save(href: string, extension: string) {
+      const link = document.createElement("a");
+      link.href = href;
+      link.download =
+        title.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "." + extension;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 1000);
+    }
+    setExportError("");
+    if (format === "svg") {
+      save(url, "svg");
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1400;
+        canvas.height = height * 2;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas unavailable");
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) save(URL.createObjectURL(blob), "png");
+          else setExportError("PNG export unavailable.");
+        }, "image/png");
+      } catch {
+        setExportError("PNG export unavailable.");
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      setExportError("PNG export unavailable.");
+    };
+    img.src = url;
   }
   const chart = (isExpanded = false) => (
     <svg
@@ -109,13 +144,26 @@ export function PlotFrame({
           </button>
           <button
             className="bench-button plot-export"
-            onClick={download}
+            onClick={() => download()}
             aria-label={`Export ${title} as SVG`}
           >
             SVG
           </button>
+          <button
+            className="bench-button plot-export"
+            onClick={() => download("png")}
+            aria-label={`Export ${title} as PNG`}
+          >
+            PNG
+          </button>
         </div>
       </figcaption>
+      {controls && <div className="plot-controls">{controls}</div>}
+      {exportError && (
+        <p role="alert" className="muted">
+          {exportError}
+        </p>
+      )}
       <div
         className="science-scroll"
         tabIndex={0}
@@ -134,7 +182,7 @@ export function PlotFrame({
           <h2>{title}</h2>
           <button
             className="bench-button plot-export"
-            onClick={download}
+            onClick={() => download()}
             aria-label={`Download ${title} as SVG`}
           >
             Export SVG
@@ -176,16 +224,38 @@ export function LinePlot({
   formatY?: (v: number) => string;
   formatX?: (v: number) => string;
 }) {
-  const all = [...series.flatMap((s) => s.points), ...markers];
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [zoom, setZoom] = useState("full");
+  const [hover, setHover] = useState<number | null>(null);
+  const all = [...series.flatMap((s) => s.points), ...markers].filter(
+    (p) => Number.isFinite(p.x) && Number.isFinite(p.y),
+  );
   if (!all.length)
     return <p className="muted">{title}: no observations available.</p>;
-  const [xmin, xmax] = xDomain ?? [
+  const [originalMin, xmax] = xDomain ?? [
     Math.min(...all.map((p) => p.x)),
     Math.max(...all.map((p) => p.x)),
   ];
+  const xmin =
+    zoom === "full" ? originalMin : xmax - (xmax - originalMin) * Number(zoom);
+  const visible = series.map((s) => ({
+    ...s,
+    points: hidden.includes(s.name)
+      ? []
+      : s.points.filter(
+          (p) => p.x >= xmin && p.x <= xmax && Number.isFinite(p.y),
+        ),
+  }));
+  const visibleMarkers = markers.filter(
+    (p) => p.x >= xmin && p.x <= xmax && Number.isFinite(p.y),
+  );
+  const visiblePoints = [
+    ...visible.flatMap((s) => s.points),
+    ...visibleMarkers,
+  ];
   const [ymin, ymax] = yDomain ?? [
-    Math.min(...all.map((p) => p.y)),
-    Math.max(...all.map((p) => p.y)),
+    Math.min(...(visiblePoints.length ? visiblePoints : all).map((p) => p.y)),
+    Math.max(...(visiblePoints.length ? visiblePoints : all).map((p) => p.y)),
   ];
   const x = (v: number) =>
     xmin === xmax ? 78 : 78 + (592 * (v - xmin)) / (xmax - xmin);
@@ -195,7 +265,66 @@ export function LinePlot({
     s.color ?? plotColors[i % plotColors.length];
   const legendHeight = 226 + (legend ? Math.ceil(series.length / 3) * 18 : 0);
   return (
-    <PlotFrame title={title} height={legendHeight}>
+    <PlotFrame
+      title={title}
+      height={legendHeight}
+      controls={
+        <>
+          {legend &&
+            series.length > 1 &&
+            series.map((s, i) => (
+              <button
+                key={s.name}
+                className="bench-button plot-toggle"
+                aria-pressed={!hidden.includes(s.name)}
+                onClick={() =>
+                  setHidden((old) =>
+                    old.includes(s.name)
+                      ? old.filter((v) => v !== s.name)
+                      : [...old, s.name],
+                  )
+                }
+              >
+                <span style={{ background: palette(s, i) }} />
+                {s.name}
+              </button>
+            ))}
+          <label className="plot-zoom">
+            Window{" "}
+            <select
+              aria-label={`Window for ${title}`}
+              value={zoom}
+              onChange={(e) => {
+                setZoom(e.target.value);
+                setHover(null);
+              }}
+            >
+              <option value="full">All</option>
+              <option value="0.5">Last half</option>
+              <option value="0.25">Last quarter</option>
+            </select>
+          </label>
+          {hover !== null && (
+            <span className="plot-hover">
+              {" "}
+              {formatX(hover)} ·{" "}
+              {visible
+                .flatMap((s) => {
+                  const nearest = s.points.reduce<Point | undefined>(
+                    (a, b) =>
+                      !a || Math.abs(b.x - hover) < Math.abs(a.x - hover)
+                        ? b
+                        : a,
+                    undefined,
+                  );
+                  return nearest ? [s.name + ": " + formatY(nearest.y)] : [];
+                })
+                .join(" · ")}
+            </span>
+          )}
+        </>
+      }
+    >
       {(ymin === ymax ? [ymin] : [ymin, (ymin + ymax) / 2, ymax]).map((v) => (
         <g key={v}>
           <line x1="78" x2="670" y1={y(v)} y2={y(v)} stroke="var(--line)" />
@@ -236,7 +365,7 @@ export function LinePlot({
       >
         {xLabel}
       </text>
-      {series.map((s, i) => (
+      {visible.map((s, i) => (
         <g key={s.name}>
           {!s.scatter && (
             <polyline
@@ -281,7 +410,7 @@ export function LinePlot({
           )}
         </g>
       ))}
-      {markers.map((p, i) =>
+      {visibleMarkers.map((p, i) =>
         p.direction ? (
           <path
             key={i}
@@ -308,6 +437,37 @@ export function LinePlot({
             </title>
           </circle>
         ),
+      )}
+      <rect
+        x="78"
+        y="32"
+        width="592"
+        height="144"
+        fill="transparent"
+        pointerEvents="all"
+        onPointerMove={(e) => {
+          const bounds = e.currentTarget.getBoundingClientRect();
+          setHover(
+            xmin +
+              (xmax - xmin) *
+                Math.max(
+                  0,
+                  Math.min(1, (e.clientX - bounds.left) / bounds.width),
+                ),
+          );
+        }}
+        onPointerLeave={() => setHover(null)}
+      />
+      {hover !== null && (
+        <line
+          x1={x(hover)}
+          x2={x(hover)}
+          y1="32"
+          y2="176"
+          stroke="var(--muted)"
+          strokeDasharray="3 3"
+          pointerEvents="none"
+        />
       )}
     </PlotFrame>
   );
