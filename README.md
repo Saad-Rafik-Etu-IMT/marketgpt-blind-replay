@@ -1,5 +1,13 @@
 # Blind Replay Bench
 
+**Research laboratory:** the home page now opens the automated campaign
+workspace. See [the current specification](docs/research/MASTER_SPECIFICATION.md),
+[research protocol](docs/research/RESEARCH_PROTOCOL.md),
+[campaign recipes](docs/research/EXPERIMENT_CATALOG.md) and
+[implementation reconciliation](docs/engineering/IMPLEMENTATION_BACKLOG.md).
+The remaining historical status sections below describe earlier milestones;
+refer to the laboratory documents for the current implementation.
+
 `marketgpt-blind-replay` is a six-student Deep Learning & LLM course project:
 compare a small Transformer trained on past returns (MarketGPT) with simple
 players on unseen historical market periods, hiding tickers, dates and real
@@ -286,7 +294,7 @@ network access; it is separate from the offline-test requirement.
 
 | Service/store | Default |
 | --- | --- |
-| Frontend | `http://localhost:3000` → `/experiments`; existing replay at `/replay` |
+| Frontend | `http://localhost:3000` → `/laboratory`; existing replay at `/replay` |
 | Backend/API docs | `http://localhost:8000/docs` |
 | Fresh database | `backend/data/db/trading_lab.sqlite`, created on first DB request |
 
