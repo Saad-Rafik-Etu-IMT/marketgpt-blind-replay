@@ -13,6 +13,7 @@ from src.api import routes_experiments
 from src.datasets import ContextRule
 from src.evaluation import evaluate_experiment
 from src.evaluation.evaluate import classification_curves
+from src.evaluation.inspection import inspect_prediction, prediction_cases
 from src.experiments import ExperimentSpec, Runner, run_folder, write_spec
 from src.experiments.campaigns import campaigns
 from src.experiments.holdout import evaluate, freeze
@@ -107,6 +108,35 @@ def test_data_identity_is_frozen(registered):
     changed["SYN_A"].iloc[5, changed["SYN_A"].columns.get_loc("volume")] += 1
     with pytest.raises(ValueError, match="Development data or split changed"):
         runner.verify_data(changed)
+
+
+def test_checkpoint_inspection_is_development_only(registered, monkeypatch):
+    data, folder, key = registered
+    target = "direction_binary_v1"
+    with pytest.raises(ValueError, match="development partitions"):
+        prediction_cases(folder, data, key, "test", target)
+    evaluate_experiment(folder, data, "inner_validation", n_boot=20)
+    report = prediction_cases(folder, data, key, "inner_validation", target)
+    assert len(report["cases"]) > 0
+    case = report["cases"][0]
+    info = inspect_prediction(folder, data, key, "inner_validation", target, 0, 0, 1)
+    assert info["probability"] == pytest.approx(case["probability"])
+    assert info["reference"] + sum(
+        f["delta"] for f in info["features"]
+    ) == pytest.approx(case["probability"])
+    assert 0 <= info["counterfactual"]["probability"] <= 1
+    assert info["activations"]
+    with pytest.raises(ValueError, match="bounds"):
+        inspect_prediction(folder, data, key, "inner_validation", target, 0, 0, 4)
+    monkeypatch.setattr(routes_experiments, "data_dir", lambda: data)
+    monkeypatch.setattr(routes_experiments, "worker", None)
+    client = TestClient(create_app())
+    path = f"/api/experiments/{folder.name}/runs/{key}/predictions"
+    assert client.get(path).json()["cases"][0] == case
+    assert client.get(path + "/0").status_code == 200
+    assert len(client.post(path + "/0/explain").json()["facts"]) == 3
+    assert client.get(path + "?part=test").status_code == 409
+    assert client.get(path + "/999999").status_code == 409
 
 
 def test_registered_replay_uses_engine_and_exports(registered, monkeypatch):
