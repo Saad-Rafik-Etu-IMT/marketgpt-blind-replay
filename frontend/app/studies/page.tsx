@@ -762,6 +762,7 @@ export default function Studies() {
           )}
           {tab === "Evaluation" && r && (
             <Results
+              key={base}
               r={r}
               inspect={(i) => nav({ case: String(i), tab: "Inspector" })}
             />
