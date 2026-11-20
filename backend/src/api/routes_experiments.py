@@ -23,6 +23,7 @@ from src.ai.mlp import PRESETS, preset
 from src.config import BACKEND_DIR, get_settings
 from src.data.split import load_split_config
 from src.datasets import ContextRule, ScalerKind
+from src.evaluation import EvaluationError, evaluate_experiment, read_evaluation
 from src.experiments import (
     EXPERIMENT_PROFILES,
     MAX_RUNS,
@@ -371,3 +372,36 @@ def compare(
             }
         )
     return out
+
+
+# ---------------------------------------------------------------- evaluation
+@router.post("/{experiment}/evaluate")
+def evaluate(
+    experiment: UUID,
+    part: str = Query(
+        default="inner_validation", pattern="^(inner_validation|validation)$"
+    ),
+) -> dict[str, Any]:
+    """Synchronous T7 evaluation; ``part=validation`` is logged in the validation-read ledger."""
+    folder = folder_of(experiment)
+    with lock:
+        if _running() and active_id == folder.name:
+            raise HTTPException(409, "The experiment is still running")
+        try:
+            report = evaluate_experiment(folder, data_dir(), part)
+        except EvaluationError as exc:
+            raise HTTPException(409, str(exc)) from exc
+    return {
+        "part": part,
+        "summary": report["ablation"]["summary"],
+        "results": len(report["results"]),
+    }
+
+
+@router.get("/{experiment}/evaluation/{part}")
+def evaluation(experiment: UUID, part: str) -> dict[str, Any]:
+    folder = folder_of(experiment)
+    try:
+        return read_evaluation(folder, part)
+    except (EvaluationError, FileNotFoundError) as exc:
+        raise HTTPException(404, "No evaluation for this part") from exc

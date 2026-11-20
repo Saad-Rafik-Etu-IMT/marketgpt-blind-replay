@@ -279,14 +279,18 @@ class Runner:
         return report
 
     def _record_validation_read(self, run: Run, datasets: list[Dataset]) -> None:
+        self.record_validation_read(run.key, datasets[0].fingerprint)
+
+    def record_validation_read(self, label: str, dataset: str | None) -> None:
+        """Append one validation read to ``<data_dir>/experiments/validation_reads.json``."""
         ledger = self.data_dir / "experiments" / "validation_reads.json"
         entries = read_json(ledger)["reads"] if ledger.is_file() else []
         entries.append(
             {
                 "experiment": self.folder.name,
-                "run": run.key,
+                "run": label,
                 "at": _now(),
-                "dataset": datasets[0].fingerprint,
+                "dataset": dataset,
                 "spec_fingerprint": self.fingerprint,
             }
         )
