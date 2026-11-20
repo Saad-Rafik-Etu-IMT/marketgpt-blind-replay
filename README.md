@@ -163,6 +163,7 @@ Placeholder links below are evidence of reserved locations, **not implementation
 | F15 LLM memory-leak experiment | 3 | 📋 planned; gated on Level 2 | A | [Evaluation placeholder](backend/src/eval/README.md) |
 | F16 Fact-grounded decision explanations | 2 | 📋 backend planned; initial UI implemented | B attribution; A LLM/validator | [Explanation interface](docs/research-interface.md); [AI placeholder](backend/src/ai/README.md), no live LLM, attribution or semantic validator; no local LLM runtime is configured yet ([DEC-4](docs/work-plan.md#blocking-decisions)) |
 | T1-T2 Feature catalogue and point-in-time engine | Extension | ✅ T1-T2 done (Groups A to G, 70 features; H to J planned) | AI-assisted, authorized 2026-11-20 | [Feature package](backend/src/features), [catalogue doc](docs/features.md), [future-mutation tests](backend/tests/test_feature_point_in_time.py), [baseline parity](backend/tests/test_feature_baseline_parity.py), redundancy-checked profiles; not yet used by any model or player |
+| T3 Dataset builder | Extension | ✅ T3 done | AI-assisted, authorized 2026-11-20 | [Dataset package](backend/src/datasets), [doc](docs/datasets.md), [tests incl. parity with the study pipeline](backend/tests/test_datasets.py); not yet called by the study worker (T6) |
 
 ## Audit 2026-11-17: verified state and gaps
 
@@ -419,8 +420,8 @@ milestone. They do not certify the planned models or live explanation pipeline.
 | Invariant | Enforcement / test status |
 | --- | --- |
 | No API, model, tokenizer or explanation may use bars after the current index during a replay decision | Replay subset ✅: `test_api_never_returns_future_bars`, `test_chart_data_truncated_at_current_bar`, `test_order_cannot_reference_future_bar`, `test_risk_metrics_exclude_future_data` in [anti-lookahead tests](backend/tests/test_no_lookahead.py); `test_full_history_endpoint_is_not_exposed` in [market tests](backend/tests/test_routes_market.py). Model/tokenizer/explanation boundary: 📋 test planned. |
-| Chronological train/validation/test split with a gap; test scenarios used once, at the end | Split ✅: dates in [split.json](backend/config/split.json). Each gap holds at least `label_horizon + embargo` bars; train/validation examples keep their whole window (look-back plus label) inside their set; test decisions may use pre-test bars as warm-up but are scored only from `test_start`. Rationale in [temporal integrity](docs/anti_lookahead.md#trainvalidationtest-split-f2), tests in [test_split.py](backend/tests/test_split.py). Single use of test scenarios: 📋 planned with F4/F7. |
-| Tokenizer bins and normalization fitted on training data only | 📋 test planned |
+| Chronological train/validation/test split with a gap; test scenarios used once, at the end | Split ✅: dates in [split.json](backend/config/split.json). Each gap holds at least `label_horizon + embargo` bars; train/validation examples keep their whole window (look-back plus label) inside their set; test decisions may use pre-test bars as warm-up but are scored only from `test_start`. The T3 dataset builder keeps this as its default and offers an explicit `available_history` option (decision 2026-11-20, recorded in each manifest; [datasets](docs/datasets.md#input-context-rule)). Rationale in [temporal integrity](docs/anti_lookahead.md#trainvalidationtest-split-f2), tests in [test_split.py](backend/tests/test_split.py). Single use of test scenarios: 📋 planned with F4/F7. |
+| Tokenizer bins and normalization fitted on training data only | Normalization ✅ in the T3 dataset builder ([test_datasets.py](backend/tests/test_datasets.py)); tokenizer: 📋 test planned |
 | Blind observations expose no ticker, date or real price level | Observation builder ✅: field, date-shift, price-scale and future-perturbation tests in [test_anonymizer.py](backend/tests/test_anonymizer.py); reduces identity cues, does not guarantee a period is unrecognisable. Player wiring and blind API: 📋 planned |
 | Code measures reasons, LLM phrases facts, validator checks output, template is fallback | 📋 test planned; F16 not implemented |
 | Never commit market data, databases or model checkpoints | Exclusions in [.gitignore](.gitignore); repository-content enforcement: 📋 test planned. Ignore rules are not proof against forced additions. |
@@ -943,6 +944,7 @@ npm exec --yes --package=node@20 -- node node_modules\playwright\cli.js test
 - [Benchmark scenarios, blind observations and execution](docs/benchmark.md)
 - [Remaining work plan, integration contracts and decisions](docs/work-plan.md)
 - [Feature catalogue and point-in-time rules](docs/features.md)
+- [Dataset construction](docs/datasets.md)
 - [CI configuration](.github/workflows/ci.yml)
 
 📋 Planned documentation, not existing files: licensed data/split protocol,

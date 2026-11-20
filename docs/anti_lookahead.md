@@ -56,9 +56,18 @@ Defaults: `lookback = 64`, `label_horizon = 1`, `embargo = 5` bars.
 - Config validation rejects overlapping or unordered sets, too-short gaps,
   `lookback < 1`, `label_horizon < 1` and `embargo < 0`.
 
+**Configurable input context for model datasets (decision of 2026-11-20).**
+The dataset builder ([datasets.md](datasets.md#input-context-rule)) keeps the
+example-window rule above as its default (`context="own_partition"`). It also
+offers `context="available_history"`: train and validation inputs may then read
+earlier bars, as test inputs already do, while decision and label bars stay
+inside their own set and gaps keep `label_horizon + embargo` bars. The choice is
+recorded in every dataset manifest.
+
 Evidence: [test_split.py](../backend/tests/test_split.py), with synthetic weekday
-calendars only (no network, no market data). Not yet covered: F1 data loading and
-fitting the tokenizer or normalization on train only. Benchmark scenarios are
+calendars only (no network, no market data); [test_datasets.py](../backend/tests/test_datasets.py)
+for both context rules and train-only normalization. Not yet covered: F1 data
+loading and fitting the tokenizer on train only. Benchmark scenarios are
 covered by [test_scenarios.py](../backend/tests/test_scenarios.py).
 
 ## Evidence and limits
