@@ -313,3 +313,51 @@
   .replay-options-popover { left: auto; right: 0; }
   .plot-dialog-header { flex-wrap: wrap; }
 }
+.laboratory .lab-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.laboratory .lab-two > *, .laboratory .lab-field { min-width: 0; }
+.laboratory .lab-two label, .laboratory .lab-field, .laboratory .section-heading label {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  font-size: .85rem;
+}
+.laboratory input:not([type=checkbox]):not([type=range]), .laboratory select {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--fg);
+  padding: .55rem .65rem;
+  border-radius: 5px;
+  min-width: 0;
+  width: 100%;
+}
+.laboratory .lab-choice {
+  border: 1px solid var(--line); border-radius: 6px;
+  margin: .9rem 0; padding: .65rem .8rem;
+  display: flex; flex-wrap: wrap; gap: .55rem .9rem;
+}
+.laboratory .lab-choice legend { padding: 0 .35rem; font-weight: 600; }
+.laboratory .lab-choice label { display: inline-flex; gap: .35rem; align-items: center; font-size: .85rem; }
+.laboratory .lab-table-scroll { overflow-x: auto; }
+.laboratory .lab-table-scroll table { width:100%; border-collapse:collapse; font-size:.83rem; }
+.laboratory .lab-table-scroll td, .laboratory .lab-table-scroll th {
+  text-align:left; padding:.65rem .55rem; border-bottom:1px solid var(--line);
+}
+.laboratory .lab-table-scroll small { display:block; color:var(--muted); }
+.laboratory .lab-context-meta { display:flex; flex-wrap:wrap; gap:.5rem 1rem; font-size:.8rem; color:var(--muted); }
+.laboratory .lab-roadmap { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.6rem; margin:1rem 0; }
+.laboratory .lab-roadmap div { border:1px solid var(--line); border-radius:6px; padding:.7rem; display:flex; flex-direction:column; gap:.3rem; }
+.laboratory .lab-roadmap strong { font-size:.75rem; color:var(--muted); }
+.laboratory .lab-progress { width:100%; accent-color:#168778; height:.65rem; }
+.laboratory .lab-metrics { flex-wrap:wrap; }
+.laboratory h3 { margin-top:1rem; }
+.laboratory .bench-notice { margin:.6rem 0; }
+@media(max-width: 760px) {
+  .laboratory .lab-two { grid-template-columns:1fr; }
+  .laboratory .lab-roadmap { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .laboratory .section-heading { flex-wrap:wrap; }
+}

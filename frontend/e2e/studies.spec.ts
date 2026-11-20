@@ -10,6 +10,9 @@ test("a saved study shares one run across training, errors, blind replay and por
   await launcher.waitFor();
   if (!(await page.getByLabel("Epochs").isVisible())) await launcher.click();
   await page.getByLabel("Epochs").fill("1");
+  // This scenario verifies one saved run end to end, not a multi-seed campaign.
+  // The research default is now five seeds; explicitly request one here.
+  await page.getByLabel("Seeds").fill("0");
   const started = page.waitForResponse(
     (r) => r.url().endsWith("/api/studies") && r.request().method() === "POST",
   );

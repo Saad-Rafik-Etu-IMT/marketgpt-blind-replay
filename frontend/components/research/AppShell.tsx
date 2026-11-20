@@ -7,6 +7,11 @@ import { useResearch } from "./ResearchProvider";
 
 const pages = [
   {
+    path: "/laboratory",
+    title: "Research laboratory",
+    purpose: "Automated campaigns, measured evidence, and registered-model replay.",
+  },
+  {
     path: "/studies",
     title: "Research studies",
     purpose: "Train models and inspect saved validation experiments.",
@@ -39,6 +44,7 @@ const pages = [
 ];
 
 const navIcons: Record<string, string> = {
+  "/laboratory": "M8 3h8m-6 0v6l-6 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-9V3M7 15h10",
   "/studies":
     "M8 3h8m-6 0v6l-6 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-9V3M7 15h10",
   "/comparison": "M3 6h5l8 12h5m-3-3 3 3-3 3M3 18h5l3-5m3-3 2-4h5m-3-3 3 3-3 3",
@@ -59,7 +65,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (path === "/studies") return "/studies?" + q.toString();
     return path;
   }
-  const page = pages.find((p) => p.path === pathname) ?? pages[2];
+  const page = pages.find((p) => p.path === pathname) ?? pages[0];
   const replay = pathname === "/replay";
   const { bundle, mode, useDemo, useReal, importFile, loading, error } =
     useResearch();
@@ -104,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setThemeError("Theme preference could not be saved.");
     }
   }
-  const comparison = pathname === "/comparison" || pathname === "/studies";
+  const comparison = pathname === "/comparison" || pathname === "/studies" || pathname === "/laboratory";
   const synthetic = !comparison && !replay && bundle?.origin === "synthetic";
   if (pathname === "/jury")
     return (
@@ -119,7 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
       <aside className="bench-sidebar">
-        <Link href="/experiments" className="bench-brand">
+        <Link href="/laboratory" className="bench-brand">
           <span className="bench-mark" aria-hidden="true">
             <i />
             <i />
@@ -133,7 +139,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {[
             {
               title: "Workspace",
-              paths: ["/studies", "/replay", "/comparison"],
+              paths: ["/laboratory", "/studies", "/replay", "/comparison"],
             },
             {
               title: "Imported reports",

@@ -4,7 +4,7 @@ import { demoBundle } from "../lib/research/demo";
 test("connected research workflow, mode isolation and responsive themes", async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/experiments");
   await expect(page).toHaveURL(/\/experiments$/);
   await expect(page.getByText("No Data · Real mode", { exact: true })).toBeVisible();
   await expect(page.getByText("No research runs loaded")).toBeVisible();
