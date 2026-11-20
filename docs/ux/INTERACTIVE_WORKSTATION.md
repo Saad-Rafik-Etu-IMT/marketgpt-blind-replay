@@ -49,6 +49,11 @@ ETA excludes early stopping and is not a promise. No new runtime dependency.
 - Chromium laboratory workflow passed with training, report, interactive confusion
   matrix, exact case attribution, counterfactual, deterministic replay, SVG/PNG
   download, URL restoration, presentation, and mobile width check.
+- All ten existing Chromium integration workflows passed. An additional
+  chart-specific Chromium test passed actual wheel zoom, drag navigation,
+  Shift-wheel Y scaling, synchronized chart ranges and fit/reset.
+- Replay defaults to a full-width market chart, with a side-by-side option;
+  the fixed-height crosshair readout avoids plot movement during gestures.
 - Existing saved reports remain usable; the inspection endpoint reconstructs
   development cases on demand from the matching saved checkpoint.
 

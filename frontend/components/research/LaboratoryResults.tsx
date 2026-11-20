@@ -804,6 +804,7 @@ export function ReplayView({
   const [note, setNote] = useState("");
   const [guesses, setGuesses] = useState<Record<number, string>>({});
   const [blindHuman, setBlindHuman] = useState(false);
+  const [wideMarket, setWideMarket] = useState(true);
   const bookmarkKey = `blind-replay.bookmarks.${id}.${run}.${part}.${asset ?? ""}`;
   useEffect(() => {
     try {
@@ -1371,7 +1372,21 @@ export function ReplayView({
             </article>
           )}
           <ChartSync>
-            <div className="lab-two">
+            <div className="bench-actions">
+              <button
+                className="bench-button"
+                aria-pressed={wideMarket}
+                onClick={() => setWideMarket((v) => !v)}
+              >
+                {wideMarket ? "Wide market chart" : "Side-by-side charts"}
+              </button>
+              <span className="muted">
+                Charts share the selected market window.
+              </span>
+            </div>
+            <div
+              className={`lab-two replay-chart-grid ${wideMarket ? "wide-market" : ""}`}
+            >
               {replay.market[0]?.open !== undefined ? (
                 <MarketWorkbench
                   replay={replay}

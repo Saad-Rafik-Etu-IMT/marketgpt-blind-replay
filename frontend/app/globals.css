@@ -369,6 +369,9 @@
 .chart-help { font-size: 11px; }
 .market-workbench { min-width: 0; }
 .market-workbench > .bench-actions { gap: 8px; padding-bottom: 6px; }
+.laboratory .market-workbench > .bench-actions label {display:flex;flex-direction:row;align-items:center;gap:4px;white-space:nowrap;}
+.product-shell .replay-chart-grid.wide-market {grid-template-columns:minmax(0,1fr);}
+.plot-controls .bench-button{min-height:28px;padding:4px 8px;font-size:11px;}
 .case-confusion { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0; }
 .case-confusion button { display:grid;gap:4px;text-align:left;min-height:64px; }
 .case-confusion button strong {font-size:20px;}
@@ -451,7 +454,7 @@
 .plot-toggle[aria-pressed="false"] { opacity:.55; }
 .plot-zoom { display:flex; align-items:center; gap:5px; }
 .laboratory .plot-zoom select { width:auto; padding:2px 4px; }
-.plot-hover { color:var(--muted); overflow-wrap:anywhere; }
+.plot-hover { color:var(--muted); flex:1 0 100%; min-width:0; max-width:100%; height:20px; line-height:20px; overflow-x:auto; overflow-y:hidden; white-space:nowrap; scrollbar-width:none; }
 @media(max-width:760px) {
   .product-shell .product-nav { display:flex; overflow-x:auto; gap:4px; }
   .product-shell .presentation-link { margin-top:0; }

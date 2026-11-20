@@ -38,11 +38,15 @@ function ChartSurface({
   onPan,
   onHover,
   onPick,
+  range,
+  priceRange,
 }: {
   onZoom: (x: number, y: number, factor: number, vertical: boolean) => void;
   onPan: (dx: number, dy: number, vertical: boolean) => void;
   onHover: (x: number | null, y?: number) => void;
   onPick?: (x: number) => void;
+  range: Range;
+  priceRange: Range;
 }) {
   const ref = useRef<SVGRectElement>(null);
   const drag = useRef<{
@@ -74,6 +78,10 @@ function ChartSurface({
   return (
     <rect
       ref={ref}
+      data-range-start={range[0]}
+      data-range-end={range[1]}
+      data-y-start={priceRange[0]}
+      data-y-end={priceRange[1]}
       x="78"
       y="32"
       width="592"
@@ -528,33 +536,37 @@ export function LinePlot({
           <span className="muted chart-help">
             Wheel zoom · drag time · Shift-wheel / Shift-drag price
           </span>
-          {hover !== null && (
-            <span className="plot-hover">
-              {" "}
-              {formatX(hover)} ·{" "}
-              {hoverY !== null ? `Cursor Y: ${formatY(hoverY)} · ` : ""}
-              {activeCandle &&
-                `O ${formatY(activeCandle.open)} · H ${formatY(activeCandle.high)} · L ${formatY(activeCandle.low)} · C ${formatY(activeCandle.close)} · `}
-              {visibleMarkers
-                .filter((m) => Math.abs(m.x - hover) < 0.6)
-                .map((m) => m.label)
-                .join(" · ")}
-              {bands.find((b) => hover >= b.from && hover <= b.to)?.label &&
-                ` · ${bands.find((b) => hover >= b.from && hover <= b.to)?.label} · `}
-              {visible
-                .flatMap((s) => {
-                  const nearest = s.points.reduce<Point | undefined>(
-                    (a, b) =>
-                      !a || Math.abs(b.x - hover) < Math.abs(a.x - hover)
-                        ? b
-                        : a,
-                    undefined,
-                  );
-                  return nearest ? [s.name + ": " + formatY(nearest.y)] : [];
-                })
-                .join(" · ")}
-            </span>
-          )}
+          <span className="plot-hover">
+            {hover !== null ? (
+              <>
+                {" "}
+                {formatX(hover)} ·{" "}
+                {hoverY !== null ? `Cursor Y: ${formatY(hoverY)} · ` : ""}
+                {activeCandle &&
+                  `O ${formatY(activeCandle.open)} · H ${formatY(activeCandle.high)} · L ${formatY(activeCandle.low)} · C ${formatY(activeCandle.close)} · `}
+                {visibleMarkers
+                  .filter((m) => Math.abs(m.x - hover) < 0.6)
+                  .map((m) => m.label)
+                  .join(" · ")}
+                {bands.find((b) => hover >= b.from && hover <= b.to)?.label &&
+                  ` · ${bands.find((b) => hover >= b.from && hover <= b.to)?.label} · `}
+                {visible
+                  .flatMap((s) => {
+                    const nearest = s.points.reduce<Point | undefined>(
+                      (a, b) =>
+                        !a || Math.abs(b.x - hover) < Math.abs(a.x - hover)
+                          ? b
+                          : a,
+                      undefined,
+                    );
+                    return nearest ? [s.name + ": " + formatY(nearest.y)] : [];
+                  })
+                  .join(" · ")}
+              </>
+            ) : (
+              "Move the pointer over the plot to inspect values."
+            )}
+          </span>
         </>
       }
     >
@@ -737,6 +749,8 @@ export function LinePlot({
         ),
       )}
       <ChartSurface
+        range={range}
+        priceRange={priceRange}
         onZoom={(fx, fy, factor, vertical) =>
           vertical
             ? setManualY(
