@@ -1,6 +1,5 @@
 """Local validation studies and server-held blind challenge outcomes."""
 
-import json
 import math
 import os
 import secrets
@@ -9,10 +8,8 @@ import subprocess
 import sys
 from contextlib import closing
 from importlib.util import find_spec
-from pathlib import Path
 from threading import Lock
 from typing import Literal
-from urllib.request import Request, urlopen
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException
@@ -20,6 +17,8 @@ from pydantic import BaseModel, Field
 
 from src.config import BACKEND_DIR, get_settings
 from src.eval.human_explanations import Responses, score_responses
+from src.services.local_explanation import explain_facts
+from src.services.study_artifacts import overview_runs, read_json, run_keys, write_json
 
 router = APIRouter(prefix="/studies", tags=["research"])
 lock = Lock()
@@ -48,23 +47,27 @@ def sources():
 
 
 def read(path):
-    if not path.is_file():
-        raise HTTPException(404, "Study artifact unavailable")
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return read_json(path)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, "Study artifact unavailable") from exc
 
 
 def status(folder):
-    value = read(folder / "status.json")
-    if value["state"] in {"running", "queued"} and (
-        active_id != folder.name or worker is None or worker.poll() is not None
-    ):
-        value = dict(
-            state="interrupted",
-            message="Worker stopped. Start a new study.",
-            done=0,
-            total=0,
-        )
-    return value
+    with lock:
+        value = read(folder / "status.json")
+        if value["state"] in {"running", "queued"} and (
+            active_id != folder.name or worker is None or worker.poll() is not None
+        ):
+            # The worker may have published its terminal state just before exit.
+            value = read(folder / "status.json")
+            if value["state"] in {"running", "queued"}:
+                value = {
+                    **value,
+                    "state": "interrupted",
+                    "message": "Worker stopped. Start a new study.",
+                }
+        return value
 
 
 @router.get("")
@@ -114,22 +117,30 @@ def start(config: StudyConfig):
             raise HTTPException(409, "A study is already training")
         folder = root() / str(uuid4())
         folder.mkdir(parents=True)
-        (folder / "config.json").write_text(json.dumps(spec))
-        (folder / "status.json").write_text(
-            json.dumps(dict(state="queued", message="Starting", done=0, total=0))
+        write_json(folder / "config.json", spec)
+        queued = dict(
+            state="queued", message="Starting", done=0, total=len(run_keys(spec))
         )
-        with (folder / "worker.log").open("w") as log:
-            worker = subprocess.Popen(
-                [
-                    sys.executable,
-                    str(BACKEND_DIR / "learning/mlp/run_study.py"),
-                    str(folder.resolve()),
-                ],
-                cwd=BACKEND_DIR,
-                stdout=log,
-                stderr=log,
-                env={**os.environ, "OPENBLAS_NUM_THREADS": "1"},
+        write_json(folder / "status.json", queued)
+        try:
+            with (folder / "worker.log").open("w") as log:
+                worker = subprocess.Popen(
+                    [
+                        sys.executable,
+                        str(BACKEND_DIR / "learning/mlp/run_study.py"),
+                        str(folder.resolve()),
+                    ],
+                    cwd=BACKEND_DIR,
+                    stdout=log,
+                    stderr=log,
+                    env={**os.environ, "OPENBLAS_NUM_THREADS": "1"},
+                )
+        except OSError as exc:
+            write_json(
+                folder / "status.json",
+                {**queued, "state": "failed", "message": "Worker could not start"},
             )
+            raise HTTPException(503, "Study worker could not start") from exc
         active_id = folder.name
         return {"id": folder.name}
 
@@ -137,13 +148,7 @@ def start(config: StudyConfig):
 def report(study, key):
     folder = root() / str(study)
     config = read(folder / "config.json")
-    keys = [
-        f"{m}-{v}-{s}"
-        for m in config["models"]
-        for v in (config["variants"] if m == "Transformer" else ["reference"])
-        for s in config["seeds"]
-    ]
-    if key not in keys:
+    if key not in run_keys(config):
         raise HTTPException(404, "Unknown model run")
     return read(folder / (key + ".json"))
 
@@ -191,24 +196,7 @@ def overview(study: UUID):
     folder = root() / str(study)
     cfg = read(folder / "config.json")
     cfg.pop("csv", None)
-    runs = []
-    for path in sorted(folder.glob("*-*.json")):
-        r = read(path)
-        runs.append(
-            dict(
-                key=path.stem,
-                model=r["model"],
-                variant=r["variant"],
-                seed=r["seed"],
-                f1=r["macroF1"],
-                loss=min(x["validationLoss"] for x in r["curves"]),
-                curves=r["curves"],
-                hasTrace="trace" in r,
-                accuracy=sum((c["p"] >= 0.5) == (c["next"] > 0) for c in r["cases"])
-                / len(r["cases"]),
-            )
-        )
-    return dict(config=cfg, status=status(folder), runs=runs)
+    return dict(config=cfg, status=status(folder), runs=overview_runs(folder, cfg))
 
 
 @router.get("/{study}/timeline")
@@ -336,9 +324,7 @@ def save_human_evaluation(study: UUID, key: str, responses: Responses):
     )
     with lock:
         path.parent.mkdir(exist_ok=True)
-        temp = path.with_suffix(".tmp")
-        temp.write_text(json.dumps(artifact, allow_nan=False), encoding="utf-8")
-        temp.replace(path)
+        write_json(path, artifact)
     return artifact
 
 
@@ -441,7 +427,7 @@ def explain(
         facts = [
             f"The next adjusted close changed by {math.expm1(r['cases'][index]['next']):+.2%}.",
             execution,
-            f"Portfolio value changed by {after['equity']-before['equity']:+,.2f} to {after['equity']:,.2f} in virtual currency, including execution effects.",
+            f"Portfolio value changed by {after['equity'] - before['equity']:+,.2f} to {after['equity']:,.2f} in virtual currency, including execution effects.",
         ]
         if mode == "standard":
             change = math.expm1(r["cases"][index]["next"])
@@ -468,15 +454,15 @@ def explain(
         delta = -obs["occlusion"][block]
         if mode == "standard":
             facts = [
-                f"The AI estimates a {obs['p']:.1%} chance of the price rising next session and a {1-obs['p']:.1%} chance of it staying unchanged or falling.",
+                f"The AI estimates a {obs['p']:.1%} chance of the price rising next session and a {1 - obs['p']:.1%} chance of it staying unchanged or falling.",
                 f"The visible price changed {math.expm1(sum(obs['inputs'][-20:])):+.2%} over the last 20 returns. Its target is {'to be invested' if target == 'long' else 'to hold cash'}. The estimate can be wrong.",
-                f"Replacing observations {8*block+1} to {8*block+8} of the 64-session input with the average learned during training changes the rising estimate by {100*delta:+.1f} percentage points, the largest measured change across the eight blocks.",
+                f"Replacing observations {8 * block + 1} to {8 * block + 8} of the 64-session input with the average learned during training changes the rising estimate by {100 * delta:+.1f} percentage points, the largest measured change across the eight blocks.",
             ]
         else:
             facts = [
                 f"The estimated upward probability was {obs['p']:.1%}.",
                 f"The position target was {target}.",
-                f"Replacing offsets {8*block-63} to {8*block-56} with the training mean changed P(up) by {delta:+.3f}.",
+                f"Replacing offsets {8 * block - 63} to {8 * block - 56} with the training mean changed P(up) by {delta:+.3f}.",
             ]
     if output == "facts":
         return dict(
@@ -484,58 +470,4 @@ def explain(
             check="Measured directly from the recorded decision",
             facts=facts,
         )
-    model = os.getenv("MRTL_OLLAMA_MODEL", "")
-    gguf = os.getenv("MRTL_GGUF_MODEL")
-    if gguf:
-        try:
-            from src.services.local_explanation import verbalize
-
-            generated = verbalize(gguf, facts)
-            return dict(
-                source=Path(gguf).name,
-                check="Constrained generation; all three facts verified",
-                facts=generated,
-            )
-        except (ImportError, OSError, ValueError, RuntimeError):
-            model = model or ""
-    if model:
-        try:
-            prompt = (
-                "Write a concise decision explanation using these sentences verbatim. Order them by importance. Return JSON with a sentences array containing each sentence exactly once. "
-                + json.dumps(facts)
-            )
-            body = json.dumps(
-                dict(
-                    model=model,
-                    prompt=prompt,
-                    stream=False,
-                    format="json",
-                    options=dict(temperature=0, num_predict=180),
-                )
-            ).encode()
-            with urlopen(
-                Request(
-                    "http://127.0.0.1:11434/api/generate",
-                    data=body,
-                    headers={"Content-Type": "application/json"},
-                ),
-                timeout=30,
-            ) as res:
-                sentences = json.loads(json.load(res)["response"])["sentences"]
-            if sorted(sentences) == sorted(facts):
-                return dict(
-                    source=model,
-                    check="All cited sentences matched measured facts",
-                    facts=sentences,
-                )
-        except (OSError, ValueError, KeyError, TypeError):
-            pass
-    return dict(
-        source="Measured template",
-        check=(
-            "Local generation unavailable or failed fact validation"
-            if model or gguf
-            else "Local model is not configured"
-        ),
-        facts=facts,
-    )
+    return explain_facts(facts)

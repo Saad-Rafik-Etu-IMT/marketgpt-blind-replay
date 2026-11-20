@@ -2,8 +2,11 @@
 
 import itertools
 import json
+import os
 from functools import lru_cache
+from pathlib import Path
 from threading import Lock
+from urllib.request import Request, urlopen
 
 lock = Lock()
 
@@ -39,3 +42,69 @@ def verbalize(path, facts):
     if output not in candidates:
         raise ValueError("Incomplete explanation")
     return candidates[output]
+
+
+def _matches_facts(sentences: object, facts: list[str]) -> bool:
+    return (
+        isinstance(sentences, list)
+        and all(isinstance(sentence, str) for sentence in sentences)
+        and sorted(sentences) == sorted(facts)
+    )
+
+
+def explain_facts(facts: list[str]) -> dict[str, str | list[str]]:
+    """Let a local model reorder measured facts, never invent new evidence."""
+    model = os.getenv("MRTL_OLLAMA_MODEL", "")
+    gguf = os.getenv("MRTL_GGUF_MODEL")
+    if gguf:
+        try:
+            generated = verbalize(gguf, facts)
+            if _matches_facts(generated, facts):
+                return dict(
+                    source=Path(gguf).name,
+                    check="Constrained generation; all three facts verified",
+                    facts=generated,
+                )
+        except (ImportError, OSError, ValueError, RuntimeError):
+            pass
+    if model:
+        try:
+            prompt = (
+                "Write a concise decision explanation using these sentences verbatim. Order them by importance. Return JSON with a sentences array containing each sentence exactly once. "
+                + json.dumps(facts)
+            )
+            body = json.dumps(
+                dict(
+                    model=model,
+                    prompt=prompt,
+                    stream=False,
+                    format="json",
+                    options=dict(temperature=0, num_predict=180),
+                )
+            ).encode()
+            with urlopen(
+                Request(
+                    "http://127.0.0.1:11434/api/generate",
+                    data=body,
+                    headers={"Content-Type": "application/json"},
+                ),
+                timeout=30,
+            ) as res:
+                sentences = json.loads(json.load(res)["response"])["sentences"]
+            if _matches_facts(sentences, facts):
+                return dict(
+                    source=model,
+                    check="All cited sentences matched measured facts",
+                    facts=sentences,
+                )
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    return dict(
+        source="Measured template",
+        check=(
+            "Local generation unavailable or failed fact validation"
+            if model or gguf
+            else "Local model is not configured"
+        ),
+        facts=facts,
+    )

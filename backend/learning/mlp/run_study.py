@@ -8,12 +8,9 @@ import pandas as pd
 from export_comparison import dataset_timeline, export, synthetic_frame
 
 from src.data.split import load_split_config
-
-
-def write(path, value):
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(value, allow_nan=False), encoding="utf-8")
-    tmp.replace(path)
+from src.eval.execution import load_benchmark_profile
+from src.services.study_artifacts import overview_entry, run_keys
+from src.services.study_artifacts import write_json as write
 
 
 def work(root):
@@ -24,11 +21,11 @@ def work(root):
         if source == "synthetic"
         else pd.read_csv(spec["csv"], parse_dates=["date"], index_col="date")
     )
-    total = len(spec["seeds"]) * sum(
-        len(spec["variants"]) if m == "Transformer" else 1 for m in spec["models"]
-    )
+    total = len(run_keys(spec))
     completed = 0
-    timeline = dataset_timeline(frame, load_split_config())
+    config = load_split_config()
+    profile = load_benchmark_profile()
+    timeline = dataset_timeline(frame, config)
     for model in spec["models"]:
         for variant in spec["variants"] if model == "Transformer" else ["reference"]:
             for seed in spec["seeds"]:
@@ -58,12 +55,15 @@ def work(root):
                     epochs=spec["epochs"],
                     progress=progress,
                     research=True,
+                    config=config,
+                    profile=profile,
                 )
                 if result["dataset"] != timeline["dataset"]:
                     raise ValueError("Timeline and run use different data")
                 if completed == 0:
                     write(root / "timeline.json", timeline)
                 write(root / (key + ".json"), result)
+                write(root / (key + ".overview"), overview_entry(key, result))
                 write(
                     root / ("summary-" + key + ".meta"),
                     dict(
@@ -79,19 +79,37 @@ def work(root):
                     ),
                 )
                 completed += 1
+                write(
+                    root / "status.json",
+                    dict(
+                        state="running",
+                        message=f"{key} · Saved",
+                        done=completed,
+                        total=total,
+                    ),
+                )
     write(
         root / "status.json",
         dict(state="complete", message="Ready", done=completed, total=total),
     )
 
 
-if __name__ == "__main__":
-    folder = Path(sys.argv[1])
+def run(folder):
     try:
         work(folder)
     except Exception as exc:
+        status_path = folder / "status.json"
+        previous = (
+            json.loads(status_path.read_text(encoding="utf-8"))
+            if status_path.is_file()
+            else dict(done=0, total=0)
+        )
         write(
             folder / "status.json",
-            dict(state="failed", message=str(exc), done=0, total=0),
+            {**previous, "state": "failed", "message": str(exc)},
         )
         raise
+
+
+if __name__ == "__main__":
+    run(Path(sys.argv[1]))
