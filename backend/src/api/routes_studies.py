@@ -8,8 +8,9 @@ import subprocess
 import sys
 from contextlib import closing
 from importlib.util import find_spec
+from pathlib import Path
 from threading import Lock
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException
@@ -22,8 +23,8 @@ from src.services.study_artifacts import overview_runs, read_json, run_keys, wri
 
 router = APIRouter(prefix="/studies", tags=["research"])
 lock = Lock()
-worker = None
-active_id = None
+worker: subprocess.Popen[bytes] | None = None
+active_id: str | None = None
 Variant = Literal["reference", "no-position", "no-dropout", "no-decay", "fixed-lr"]
 
 
@@ -37,23 +38,23 @@ class StudyConfig(BaseModel):
     epochs: int = Field(default=8, ge=1, le=60)
 
 
-def root():
+def root() -> Path:
     return get_settings().data_dir / "studies"
 
 
-def sources():
+def sources() -> dict[str, Path]:
     raw = get_settings().data_dir / "raw" / "yfinance"
     return {p.stem: p for p in raw.glob("*.csv") if p.is_file()}
 
 
-def read(path):
+def read(path: Path) -> dict[str, Any]:
     try:
         return read_json(path)
     except FileNotFoundError as exc:
         raise HTTPException(404, "Study artifact unavailable") from exc
 
 
-def status(folder):
+def status(folder: Path) -> dict[str, Any]:
     with lock:
         value = read(folder / "status.json")
         if value["state"] in {"running", "queued"} and (

@@ -1,5 +1,6 @@
 """Optional reference-model checks exercised explicitly in CPU CI."""
 
+from importlib import import_module
 from pathlib import Path
 
 import numpy as np
@@ -9,12 +10,14 @@ import pytest
 @pytest.mark.parametrize(
     "variant", ["reference", "no-position", "no-dropout", "no-decay", "fixed-lr"]
 )
-def test_reference_transformer_training_and_prediction(variant, tmp_path, monkeypatch):
+def test_reference_transformer_training_and_prediction(
+    variant: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     torch = pytest.importorskip("torch")
     monkeypatch.syspath_prepend(
         str(Path(__file__).resolve().parents[1] / "learning/mlp")
     )
-    from transformer_reference import fit_transformer
+    fit_transformer = import_module("transformer_reference").fit_transformer
 
     rng = np.random.default_rng(42)
     xt, xv = rng.normal(0, 0.01, (16, 64)), rng.normal(0, 0.01, (8, 64))

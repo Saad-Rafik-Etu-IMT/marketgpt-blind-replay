@@ -4,29 +4,32 @@ import itertools
 import json
 import os
 from functools import lru_cache
+from importlib import import_module
 from pathlib import Path
 from threading import Lock
+from typing import Any
 from urllib.request import Request, urlopen
 
 lock = Lock()
 
 
 @lru_cache(maxsize=1)
-def load(path):
-    from llama_cpp import Llama
+def load(path: str) -> Any:
+    # The optional binding is deliberately loaded only when configured.
+    return import_module("llama_cpp").Llama(
+        model_path=path, n_ctx=512, n_threads=2, verbose=False
+    )
 
-    return Llama(model_path=path, n_ctx=512, n_threads=2, verbose=False)
 
-
-def verbalize(path, facts):
-    from llama_cpp import LlamaGrammar
+def verbalize(path: str, facts: list[str]) -> list[str]:
+    grammar_class = import_module("llama_cpp").LlamaGrammar
 
     # The model selects the order of the three evidence sentences. JSON quoting
     # escapes decimal points, punctuation and whitespace as literal grammar text.
     candidates = {
         " ".join(order): list(order) for order in itertools.permutations(facts)
     }
-    grammar = LlamaGrammar.from_string(
+    grammar = grammar_class.from_string(
         "root ::= " + " | ".join(json.dumps(x) for x in candidates), verbose=False
     )
     with lock:

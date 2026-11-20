@@ -6,7 +6,10 @@ from typing import Any
 
 
 def read_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("Expected a JSON object")
+    return value
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:

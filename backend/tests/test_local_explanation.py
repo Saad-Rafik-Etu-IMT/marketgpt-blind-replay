@@ -20,7 +20,9 @@ FACTS = ["Probability: 70%.", "Target: cash.", "Measured sensitivity: 5%."]
         (None, False),
     ],
 )
-def test_ollama_requires_verbatim_evidence(monkeypatch, sentences, accepted):
+def test_ollama_requires_verbatim_evidence(
+    monkeypatch: pytest.MonkeyPatch, sentences: list[str] | None, accepted: bool
+) -> None:
     monkeypatch.delenv("MRTL_GGUF_MODEL", raising=False)
     monkeypatch.setenv("MRTL_OLLAMA_MODEL", "local-test")
     reply = json.dumps({"response": json.dumps({"sentences": sentences})})
@@ -32,18 +34,20 @@ def test_ollama_requires_verbatim_evidence(monkeypatch, sentences, accepted):
     assert result["facts"] == (sentences if accepted else FACTS)
 
 
-def test_provider_failure_preserves_measured_facts(monkeypatch):
+def test_provider_failure_preserves_measured_facts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("MRTL_OLLAMA_MODEL", raising=False)
     monkeypatch.setenv("MRTL_GGUF_MODEL", "local.gguf")
 
-    def unavailable(*args):
+    def unavailable(*args: object) -> None:
         raise OSError("model unavailable")
 
     monkeypatch.setattr(local_explanation, "verbalize", unavailable)
     assert local_explanation.explain_facts(FACTS)["facts"] == FACTS
 
 
-def test_gguf_uses_same_evidence_contract(monkeypatch):
+def test_gguf_uses_same_evidence_contract(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MRTL_OLLAMA_MODEL", raising=False)
     monkeypatch.setenv("MRTL_GGUF_MODEL", "local.gguf")
     monkeypatch.setattr(local_explanation, "verbalize", lambda *args: FACTS[::-1])

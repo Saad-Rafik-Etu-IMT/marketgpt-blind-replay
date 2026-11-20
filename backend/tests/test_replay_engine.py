@@ -61,11 +61,14 @@ def seeded_db(db_session: Session) -> Session:
 
 # --- Session creation ------------------------------------------------------
 
-def test_initial_snapshot_failure_rolls_back_session(seeded_db, monkeypatch):
+
+def test_initial_snapshot_failure_rolls_back_session(
+    seeded_db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     original = portfolio_service.initialize_session
 
-    def fail(*args, **kwargs):
-        original(*args, **kwargs)
+    def fail(db: Session, session_id: str, *, commit: bool = True) -> None:
+        original(db, session_id, commit=commit)
         raise RuntimeError("snapshot unavailable")
 
     monkeypatch.setattr(portfolio_service, "initialize_session", fail)
@@ -74,11 +77,13 @@ def test_initial_snapshot_failure_rolls_back_session(seeded_db, monkeypatch):
     assert list_sessions(seeded_db) == []
 
 
-def test_single_bar_query_respects_session_window(seeded_db):
+def test_single_bar_query_respects_session_window(seeded_db: Session) -> None:
     session = create_session(seeded_db, "SPY", date(2023, 1, 4), date(2023, 1, 10))
     orm = seeded_db.get(ReplaySessionORM, session.session_id)
-    assert bar_at(seeded_db, orm, 0).date == date(2023, 1, 4)
-    assert bar_at(seeded_db, orm, 4).date == date(2023, 1, 10)
+    assert orm is not None
+    first, last = bar_at(seeded_db, orm, 0), bar_at(seeded_db, orm, 4)
+    assert first is not None and first.date == date(2023, 1, 4)
+    assert last is not None and last.date == date(2023, 1, 10)
     assert bar_at(seeded_db, orm, 5) is None
     assert bar_at(seeded_db, orm, -1) is None
 

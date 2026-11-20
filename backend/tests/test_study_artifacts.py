@@ -1,8 +1,11 @@
 """Regression protection for publication, run identity, and study progress."""
 
 import json
+import subprocess
+from importlib import import_module
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,7 +15,7 @@ from src.main import create_app
 from src.services import study_artifacts as artifacts
 
 
-def report():
+def report() -> dict[str, Any]:
     return dict(
         model="MLP",
         variant="reference",
@@ -24,7 +27,9 @@ def report():
     )
 
 
-def test_summary_matches_legacy_and_avoids_full_report_read(tmp_path, monkeypatch):
+def test_summary_matches_legacy_and_avoids_full_report_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = dict(models=["MLP"], variants=["reference"], seeds=[0, 1])
     path = tmp_path / "MLP-reference-0.json"
     artifacts.write_json(path, report())
@@ -35,7 +40,7 @@ def test_summary_matches_legacy_and_avoids_full_report_read(tmp_path, monkeypatc
     )
     original = artifacts.read_json
 
-    def read(path):
+    def read(path: Path) -> dict[str, Any]:
         assert path.suffix == ".overview"
         return original(path)
 
@@ -44,7 +49,7 @@ def test_summary_matches_legacy_and_avoids_full_report_read(tmp_path, monkeypatc
     assert expected[0]["accuracy"] == 1
 
 
-def test_corrupted_summary_falls_back_to_original_report(tmp_path):
+def test_corrupted_summary_falls_back_to_original_report(tmp_path: Path) -> None:
     cfg = dict(models=["MLP"], variants=["reference"], seeds=[0])
     artifacts.write_json(tmp_path / "MLP-reference-0.json", report())
     expected = artifacts.overview_runs(tmp_path, cfg)
@@ -52,16 +57,18 @@ def test_corrupted_summary_falls_back_to_original_report(tmp_path):
     assert artifacts.overview_runs(tmp_path, cfg) == expected
 
 
-def test_worker_launch_failure_is_recorded(tmp_path, monkeypatch):
+def test_worker_launch_failure_is_recorded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(
         routes_studies, "get_settings", lambda: SimpleNamespace(data_dir=tmp_path)
     )
     monkeypatch.setattr(routes_studies, "worker", None)
 
-    def fail(*args, **kwargs):
+    def fail(*args: Any, **kwargs: Any) -> None:
         raise OSError("cannot launch")
 
-    monkeypatch.setattr(routes_studies.subprocess, "Popen", fail)
+    monkeypatch.setattr(subprocess, "Popen", fail)
     client = TestClient(create_app())
     response = client.post("/api/studies", json={"seeds": [1, 2]})
     assert response.status_code == 503
@@ -69,7 +76,9 @@ def test_worker_launch_failure_is_recorded(tmp_path, monkeypatch):
     assert (status["state"], status["done"], status["total"]) == ("failed", 0, 2)
 
 
-def test_interrupted_worker_retains_completed_runs(tmp_path, monkeypatch):
+def test_interrupted_worker_retains_completed_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(routes_studies, "worker", None)
     artifacts.write_json(
         tmp_path / "status.json",
@@ -80,12 +89,12 @@ def test_interrupted_worker_retains_completed_runs(tmp_path, monkeypatch):
 
 
 def test_worker_freezes_configuration_and_preserves_failure_progress(
-    tmp_path, monkeypatch
-):
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.syspath_prepend(
         str(Path(__file__).resolve().parents[1] / "learning/mlp")
     )
-    import run_study
+    run_study = import_module("run_study")
 
     artifacts.write_json(
         tmp_path / "config.json",
@@ -104,9 +113,9 @@ def test_worker_freezes_configuration_and_preserves_failure_progress(
     monkeypatch.setattr(
         run_study, "dataset_timeline", lambda f, c: {"dataset": "fixed"}
     )
-    calls = []
+    calls: list[tuple[object, object]] = []
 
-    def export(*args, **kwargs):
+    def export(*args: Any, **kwargs: Any) -> dict[str, Any]:
         calls.append((kwargs["config"], kwargs["profile"]))
         if len(calls) == 2:
             raise ValueError("second run failed")
