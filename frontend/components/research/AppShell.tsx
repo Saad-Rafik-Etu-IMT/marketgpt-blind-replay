@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useResearch } from "./ResearchProvider";
+import { laboratories, labHref } from "@/lib/research/product-context";
 
 const pages = [
   {
     path: "/laboratory",
     title: "Research laboratory",
-    purpose: "Automated campaigns, measured evidence, and registered-model replay.",
+    purpose:
+      "Automated campaigns, measured evidence, and registered-model replay.",
   },
   {
     path: "/studies",
@@ -44,7 +46,8 @@ const pages = [
 ];
 
 const navIcons: Record<string, string> = {
-  "/laboratory": "M8 3h8m-6 0v6l-6 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-9V3M7 15h10",
+  "/laboratory":
+    "M8 3h8m-6 0v6l-6 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-9V3M7 15h10",
   "/studies":
     "M8 3h8m-6 0v6l-6 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-9V3M7 15h10",
   "/comparison": "M3 6h5l8 12h5m-3-3 3 3-3 3M3 18h5l3-5m3-3 2-4h5m-3-3 3 3-3 3",
@@ -67,6 +70,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
   const page = pages.find((p) => p.path === pathname) ?? pages[0];
   const replay = pathname === "/replay";
+  const laboratory = pathname === "/laboratory";
+  const present = laboratory && params.get("mode") === "present";
+  const activeLab =
+    laboratories.find((t) => t === params.get("tab")) ?? "Overview";
   const { bundle, mode, useDemo, useReal, importFile, loading, error } =
     useResearch();
   const [theme, setTheme] = useState("light");
@@ -81,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       a = active.getBoundingClientRect();
     if (a.left < n.left) nav.scrollLeft -= n.left - a.left + 4;
     else if (a.right > n.right) nav.scrollLeft += a.right - n.right + 4;
-  }, [pathname]);
+  }, [pathname, activeLab]);
   useEffect(() => {
     setReady(true);
     try {
@@ -110,7 +117,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setThemeError("Theme preference could not be saved.");
     }
   }
-  const comparison = pathname === "/comparison" || pathname === "/studies" || pathname === "/laboratory";
+  const comparison =
+    pathname === "/comparison" ||
+    pathname === "/studies" ||
+    pathname === "/laboratory";
   const synthetic = !comparison && !replay && bundle?.origin === "synthetic";
   if (pathname === "/jury")
     return (
@@ -120,12 +130,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
     );
   return (
-    <div className="bench-shell">
+    <div
+      className={`bench-shell ${laboratory ? "product-shell" : ""} ${present ? "presentation-shell" : ""}`}
+    >
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
       <aside className="bench-sidebar">
-        <Link href="/laboratory" className="bench-brand">
+        <Link
+          href={
+            laboratory
+              ? labHref(params, { tab: "Overview", mode: null, step: null })
+              : "/laboratory"
+          }
+          className="bench-brand"
+        >
           <span className="bench-mark" aria-hidden="true">
             <i />
             <i />
@@ -135,40 +154,85 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Blind Replay<small>Research bench</small>
           </span>
         </Link>
-        <nav aria-label="Main navigation" ref={navigation}>
-          {[
-            {
-              title: "Workspace",
-              paths: ["/laboratory", "/studies", "/replay", "/comparison"],
-            },
-            {
-              title: "Imported reports",
-              paths: ["/experiments", "/inspector", "/evaluation"],
-            },
-          ].map((group) => (
-            <div className="nav-group" key={group.title}>
-              <span className="nav-label">{group.title}</span>
-              {group.paths
-                .map((path) => pages.find((p) => p.path === path)!)
-                .map((p) => (
-                  <Link
-                    key={p.path}
-                    href={destination(p.path)}
-                    aria-current={pathname === p.path ? "page" : undefined}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="nav-icon"
-                      aria-hidden="true"
+        {laboratory ? (
+          <>
+            <nav
+              className="product-nav"
+              aria-label="Laboratories"
+              ref={navigation}
+            >
+              <span className="nav-label">Research workspace</span>
+              {laboratories.map((tab, i) => (
+                <Link
+                  key={tab}
+                  href={labHref(params, { tab, mode: null, step: null })}
+                  aria-current={
+                    tab === activeLab && !present ? "page" : undefined
+                  }
+                >
+                  <span className="product-nav-number" aria-hidden="true">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  {tab}
+                </Link>
+              ))}
+              <Link
+                className="presentation-link"
+                href={labHref(params, { mode: "present", step: 0 })}
+                aria-current={present ? "page" : undefined}
+              >
+                ▶ Presentation
+              </Link>
+            </nav>
+            <details className="legacy-nav">
+              <summary>Legacy and imported tools</summary>
+              <nav aria-label="Legacy tools">
+                {pages
+                  .filter((p) => p.path !== "/laboratory")
+                  .map((p) => (
+                    <Link key={p.path} href={destination(p.path)}>
+                      {p.title}
+                    </Link>
+                  ))}
+              </nav>
+            </details>
+          </>
+        ) : (
+          <nav aria-label="Main navigation" ref={navigation}>
+            {[
+              {
+                title: "Workspace",
+                paths: ["/laboratory", "/studies", "/replay", "/comparison"],
+              },
+              {
+                title: "Imported reports",
+                paths: ["/experiments", "/inspector", "/evaluation"],
+              },
+            ].map((group) => (
+              <div className="nav-group" key={group.title}>
+                <span className="nav-label">{group.title}</span>
+                {group.paths
+                  .map((path) => pages.find((p) => p.path === path)!)
+                  .map((p) => (
+                    <Link
+                      key={p.path}
+                      href={destination(p.path)}
+                      aria-current={pathname === p.path ? "page" : undefined}
                     >
-                      <path d={navIcons[p.path]} />
-                    </svg>
-                    {p.title}
-                  </Link>
-                ))}
-            </div>
-          ))}
-        </nav>
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="nav-icon"
+                        aria-hidden="true"
+                      >
+                        <path d={navIcons[p.path]} />
+                      </svg>
+                      {p.title}
+                    </Link>
+                  ))}
+              </div>
+            ))}
+          </nav>
+        )}
         <p className="sidebar-note">Educational simulation · virtual capital</p>
         <button
           disabled={!ready}
@@ -182,8 +246,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="bench-workspace">
         <header className="bench-header">
           <div>
-            <h1>{page.title}</h1>
-            <p className="muted">{page.purpose}</p>
+            <h1>
+              {laboratory && activeLab !== "Overview"
+                ? `${activeLab} laboratory`
+                : page.title}
+            </h1>
+            <p className="muted">
+              {laboratory
+                ? "Blind Replay Bench · research workspace"
+                : page.purpose}
+            </p>
           </div>
           <span className="bench-badge source-status" role="status">
             {comparison

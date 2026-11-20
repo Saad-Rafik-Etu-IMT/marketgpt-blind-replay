@@ -121,6 +121,7 @@ export type Epoch = {
   train_loss: number;
   select_loss: number;
   selected?: boolean;
+  learning_rate?: number;
 };
 export type Run = {
   key: string;
@@ -131,6 +132,9 @@ export type Run = {
   parameter_count?: number;
   best_epoch?: number;
   epochs_run?: number;
+  device?: string;
+  training?: Record<string, unknown>;
+  architecture?: Record<string, unknown>;
   error?: string;
   inner_validation?: Record<string, Record<string, unknown>>;
   history?: Epoch[];
@@ -148,6 +152,12 @@ export type Estimate = {
   estimated_seconds: number;
   budget_seconds: number;
   within_budget: boolean;
+  per_run?: {
+    key: string;
+    inputs: number;
+    parameters: number;
+    epochs: number;
+  }[];
 };
 export type Comparison = {
   mean_difference: number;
@@ -215,13 +225,33 @@ export type Event = {
     target: string;
     action: string;
     probabilities: { long: number; flat: number } | null;
+    order_side?: "buy" | "sell" | null;
+    order_quantity?: number | null;
+    pre_trade_rejection?: string | null;
+    execution_context?: {
+      position_side: string;
+      position_quantity: number;
+      cash: number;
+    };
   };
   execution: {
     status: string;
     fill_bar: number | null;
     fill_price: number | null;
+    fill_quantity?: number | null;
+    fee?: number | null;
+    rejection_reason?: string | null;
   } | null;
-  portfolio: { equity: number; bar_index: number; cash: number };
+  portfolio: PortfolioSnapshot;
+};
+export type PortfolioSnapshot = {
+  equity: number;
+  bar_index: number;
+  cash?: number;
+  total_fees?: number;
+  total_realized_pnl?: number;
+  total_unrealized_pnl?: number;
+  positions?: { side: string; quantity: number }[];
 };
 export type Replay = {
   run: string;
@@ -230,11 +260,20 @@ export type Replay = {
   accounting: string;
   policy: string;
   label: string;
-  market: { date: string; close: number }[];
+  profile_hash?: string;
+  dataset?: string;
+  market: {
+    date: string;
+    close: number;
+    open?: number;
+    high?: number;
+    low?: number;
+    volume?: number;
+  }[];
   first_decision: number;
   players: {
     name: string;
-    initial: { equity: number; bar_index: number };
+    initial: PortfolioSnapshot;
     events: Event[];
     gain: number;
     max_drawdown: number;
