@@ -118,7 +118,10 @@ export default function Laboratory() {
     ) ?? [];
   const asset = assets.includes(params.get("asset") ?? "")
     ? params.get("asset")!
-    : (assets[0] ?? "");
+    : detail.data?.spec.primary_asset &&
+        assets.includes(detail.data.spec.primary_asset)
+      ? detail.data.spec.primary_asset
+      : (assets[0] ?? "");
   const evidence = useQuery({
     queryKey: ["lab-evaluation", id, part],
     enabled: !!id,

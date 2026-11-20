@@ -259,33 +259,13 @@ export function EvaluationView({
 }
 
 function EvaluationFigures({ entry: e }: { entry: EvaluationEntry }) {
-  const baseline = e.baselines[e.strongest_baseline];
   const names = ["Model ensemble", ...Object.keys(e.baselines)];
   const losses = [
     e.ensemble.loss,
     ...Object.values(e.baselines).map((x) => x.loss),
   ];
-  const comparison = baseline?.comparison;
   return (
     <>
-      <div className="metric-strip">
-        <div>
-          <span>Evaluated decisions</span>
-          <strong>{e.rows}</strong>
-        </div>
-        <div>
-          <span>Seeds</span>
-          <strong>{e.seeds.length}</strong>
-        </div>
-        <div>
-          <span>Model loss</span>
-          <strong>{numberText(e.ensemble.loss)}</strong>
-        </div>
-        <div>
-          <span>Verdict vs strongest baseline</span>
-          <strong>{comparison?.verdict ?? "—"}</strong>
-        </div>
-      </div>
       <LinePlot
         title="Model versus statistical baselines · lower is better"
         xLabel="Candidate"
@@ -342,174 +322,182 @@ function EvaluationFigures({ entry: e }: { entry: EvaluationEntry }) {
           </tbody>
         </table>
       </div>
-      <div className="lab-two">
-        <LinePlot
-          title="Seed variability"
-          xLabel="Seed"
-          yLabel={e.loss}
-          series={[
-            {
-              name: "Per-seed loss",
-              color: plotColors[0],
-              dots: true,
-              scatter: true,
-              points: Object.entries(e.per_seed_loss).map(([x, y]) => ({
-                x: Number(x),
-                y,
-              })),
-            },
-          ]}
-        />
-        {e.calibration && (
-          <LinePlot
-            title="Probability reliability"
-            xLabel="Predicted probability"
-            yLabel="Observed frequency"
-            xDomain={[0, 1]}
-            yDomain={[0, 1]}
-            series={[
-              {
-                name: "Perfect calibration",
-                dashed: true,
-                points: [
-                  { x: 0, y: 0 },
-                  { x: 1, y: 1 },
-                ],
-              },
-              {
-                name: "Observed bins",
-                color: plotColors[0],
-                dots: true,
-                points: e.calibration.reliability_up.map((x) => ({
-                  x: x.confidence,
-                  y: x.frequency,
-                })),
-              },
-            ]}
-          />
-        )}
-      </div>
-      {e.curves?.roc.length ? (
+      <details className="supporting-details">
+        <summary>
+          Predictive diagnostics · seeds, calibration and classification
+        </summary>
         <div className="lab-two">
           <LinePlot
-            title="ROC curve"
-            xLabel="False positive rate"
-            yLabel="True positive rate"
-            xDomain={[0, 1]}
-            yDomain={[0, 1]}
+            title="Seed variability"
+            xLabel="Seed"
+            yLabel={e.loss}
             series={[
               {
-                name: "Random ranking",
-                dashed: true,
-                points: [
-                  { x: 0, y: 0 },
-                  { x: 1, y: 1 },
-                ],
-              },
-              {
-                name: "Model",
-                points: e.curves.roc.map(([x, y]) => ({ x, y })),
-              },
-            ]}
-          />
-          <LinePlot
-            title="Precision-recall curve"
-            xLabel="Recall"
-            yLabel="Precision"
-            xDomain={[0, 1]}
-            yDomain={[0, 1]}
-            series={[
-              {
-                name: "Model",
-                points: e.curves.precision_recall.map(([x, y]) => ({ x, y })),
-              },
-            ]}
-          />
-        </div>
-      ) : null}
-      {Array.isArray(e.ensemble.metrics.confusion) &&
-        e.ensemble.metrics.confusion.length === 2 && (
-          <ConfusionPlot
-            cells={e.ensemble.metrics.confusion.flat() as number[]}
-          />
-        )}
-      {e.cost_sensitivity?.length ? (
-        <>
-          <LinePlot
-            title="Transaction cost sensitivity · simplified return proxy"
-            xLabel="Cost per position change (bps)"
-            yLabel="Equal-weight cumulative log return"
-            series={[
-              {
-                name: "Model",
+                name: "Per-seed loss",
                 color: plotColors[0],
-                points: e.cost_sensitivity.map((x) => ({
-                  x: x.cost_bps_per_change,
-                  y: x.model_ensemble.total_log_return_equal_weight,
-                })),
-              },
-              {
-                name: "Logistic regression",
-                color: plotColors[1],
-                points: e.cost_sensitivity.map((x) => ({
-                  x: x.cost_bps_per_change,
-                  y: x.logistic_regression.total_log_return_equal_weight,
-                })),
-              },
-              {
-                name: "Always long",
-                color: plotColors[2],
-                points: e.cost_sensitivity.map((x) => ({
-                  x: x.cost_bps_per_change,
-                  y: x.always_long.total_log_return_equal_weight,
+                dots: true,
+                scatter: true,
+                points: Object.entries(e.per_seed_loss).map(([x, y]) => ({
+                  x: Number(x),
+                  y,
                 })),
               },
             ]}
           />
-          <p className="muted">
-            This is a development-only vectorized proxy, not the broker replay
-            or final test evidence.
-          </p>
-        </>
-      ) : null}
-      <h3>Predictive metrics</h3>
-      <div className="metric-strip lab-metrics">
-        {Object.entries(e.ensemble.metrics)
-          .filter(([, v]) => typeof v === "number")
-          .map(([name, value]) => (
-            <div key={name}>
-              <span>{labelText(name)}</span>
-              <strong>{numberText(value)}</strong>
-            </div>
-          ))}
-      </div>
-      <h3>Market-regime robustness</h3>
-      <div className="lab-table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Regime</th>
-              <th>Rows</th>
-              <th>Model loss</th>
-              <th>Baseline loss</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(e.regimes).flatMap(([kind, regimes]) =>
-              Object.entries(regimes).map(([name, r]) => (
-                <tr key={kind + name}>
-                  <td>
-                    {labelText(kind)} · {labelText(name)}
-                  </td>
-                  <td>{r.rows}</td>
-                  <td>{numberText(r.model_loss)}</td>
-                  <td>{numberText(r.strongest_baseline_loss)}</td>
-                </tr>
-              )),
-            )}
-          </tbody>
-        </table>
-      </div>
+          {e.calibration && (
+            <LinePlot
+              title="Probability reliability"
+              xLabel="Predicted probability"
+              yLabel="Observed frequency"
+              xDomain={[0, 1]}
+              yDomain={[0, 1]}
+              series={[
+                {
+                  name: "Perfect calibration",
+                  dashed: true,
+                  points: [
+                    { x: 0, y: 0 },
+                    { x: 1, y: 1 },
+                  ],
+                },
+                {
+                  name: "Observed bins",
+                  color: plotColors[0],
+                  dots: true,
+                  points: e.calibration.reliability_up.map((x) => ({
+                    x: x.confidence,
+                    y: x.frequency,
+                  })),
+                },
+              ]}
+            />
+          )}
+        </div>
+        {e.curves?.roc.length ? (
+          <div className="lab-two">
+            <LinePlot
+              title="ROC curve"
+              xLabel="False positive rate"
+              yLabel="True positive rate"
+              xDomain={[0, 1]}
+              yDomain={[0, 1]}
+              series={[
+                {
+                  name: "Random ranking",
+                  dashed: true,
+                  points: [
+                    { x: 0, y: 0 },
+                    { x: 1, y: 1 },
+                  ],
+                },
+                {
+                  name: "Model",
+                  points: e.curves.roc.map(([x, y]) => ({ x, y })),
+                },
+              ]}
+            />
+            <LinePlot
+              title="Precision-recall curve"
+              xLabel="Recall"
+              yLabel="Precision"
+              xDomain={[0, 1]}
+              yDomain={[0, 1]}
+              series={[
+                {
+                  name: "Model",
+                  points: e.curves.precision_recall.map(([x, y]) => ({ x, y })),
+                },
+              ]}
+            />
+          </div>
+        ) : null}
+        {Array.isArray(e.ensemble.metrics.confusion) &&
+          e.ensemble.metrics.confusion.length === 2 && (
+            <ConfusionPlot
+              cells={e.ensemble.metrics.confusion.flat() as number[]}
+            />
+          )}
+        <h3>Predictive metrics</h3>
+        <div className="metric-strip lab-metrics">
+          {Object.entries(e.ensemble.metrics)
+            .filter(([, v]) => typeof v === "number")
+            .map(([name, value]) => (
+              <div key={name}>
+                <span>{labelText(name)}</span>
+                <strong>{numberText(value)}</strong>
+              </div>
+            ))}
+        </div>
+      </details>
+      <details className="supporting-details">
+        <summary>Robustness · market conditions and transaction costs</summary>
+        {e.cost_sensitivity?.length ? (
+          <>
+            <LinePlot
+              title="Transaction cost sensitivity · simplified return proxy"
+              xLabel="Cost per position change (bps)"
+              yLabel="Equal-weight cumulative log return"
+              series={[
+                {
+                  name: "Model",
+                  color: plotColors[0],
+                  points: e.cost_sensitivity.map((x) => ({
+                    x: x.cost_bps_per_change,
+                    y: x.model_ensemble.total_log_return_equal_weight,
+                  })),
+                },
+                {
+                  name: "Logistic regression",
+                  color: plotColors[1],
+                  points: e.cost_sensitivity.map((x) => ({
+                    x: x.cost_bps_per_change,
+                    y: x.logistic_regression.total_log_return_equal_weight,
+                  })),
+                },
+                {
+                  name: "Always long",
+                  color: plotColors[2],
+                  points: e.cost_sensitivity.map((x) => ({
+                    x: x.cost_bps_per_change,
+                    y: x.always_long.total_log_return_equal_weight,
+                  })),
+                },
+              ]}
+            />
+            <p className="muted">
+              This is a development-only vectorized proxy, not the broker replay
+              or final test evidence.
+            </p>
+          </>
+        ) : null}
+        <h3>Market-regime robustness</h3>
+        <div className="lab-table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Regime</th>
+                <th>Rows</th>
+                <th>Model loss</th>
+                <th>Baseline loss</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(e.regimes).flatMap(([kind, regimes]) =>
+                Object.entries(regimes).map(([name, r]) => (
+                  <tr key={kind + name}>
+                    <td>
+                      {labelText(kind)} · {labelText(name)}
+                    </td>
+                    <td>{r.rows}</td>
+                    <td>{numberText(r.model_loss)}</td>
+                    <td>{numberText(r.strongest_baseline_loss)}</td>
+                  </tr>
+                )),
+              )}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </>
   );
 }
@@ -781,6 +769,10 @@ export function ReplayView({
     facts: string[];
   }>();
   const explanationRequest = useRef(0);
+  const cursorCallback = useRef(onCursor);
+  useEffect(() => {
+    cursorCallback.current = onCursor;
+  }, [onCursor]);
   const suffix = `?part=${part}${asset ? "&asset=" + encodeURIComponent(asset) : ""}`;
   const path = `/${id}/runs/${run}/replay${suffix}`;
   const query = useQuery({
@@ -841,11 +833,11 @@ export function ReplayView({
       explanationRequest.current++;
       setExplanation(undefined);
       setCursor(cursor + 1);
-      onCursor?.(cursor + 1);
+      cursorCallback.current?.(cursor + 1);
       if (cursor + 1 >= length) setPlaying(false);
     }, 1000 / speed);
     return () => clearTimeout(timeout);
-  }, [playing, cursor, length, speed, onCursor]);
+  }, [playing, cursor, length, speed]);
   async function explain(generate: boolean) {
     const request = ++explanationRequest.current;
     try {

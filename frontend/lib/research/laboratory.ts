@@ -37,6 +37,7 @@ export type Spec = {
   name: string;
   profile: string;
   sources: string[];
+  primary_asset?: string | null;
   feature_profiles: string[];
   presets: string[];
   targets: string[];

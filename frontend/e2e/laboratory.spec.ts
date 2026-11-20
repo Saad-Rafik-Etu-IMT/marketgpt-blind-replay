@@ -58,6 +58,17 @@ test("research laboratory runs a real synthetic campaign and preserves the selec
   await expect(page.getByRole("img", { name: /Marked equity/ })).toBeVisible();
   await page.getByRole("button", { name: "Measured facts" }).click();
   await expect(page.getByText(/fixed threshold policy selected/)).toBeVisible();
+  const png = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: /Export Market candles.* as PNG/ })
+    .click();
+  expect((await png).suggestedFilename()).toMatch(/\.png$/);
+  const svg = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: /Export Marked equity.* as SVG/ })
+    .click();
+  expect((await svg).suggestedFilename()).toMatch(/\.svg$/);
+  await page.evaluate(() => window.scrollTo(0, 0));
   const screenshot = testInfo.outputPath("laboratory.png");
   await page.screenshot({ path: screenshot, fullPage: true });
   await testInfo.attach("Laboratory replay", {
@@ -67,6 +78,9 @@ test("research laboratory runs a real synthetic campaign and preserves the selec
   await expect(page).toHaveURL(/cursor=1/);
   await page.reload();
   await expect(page.getByText(/Revealed decisions: 1\//)).toBeVisible();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(page.getByText(/Revealed decisions: [2-9]\//)).toBeVisible();
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
   await tabs.getByRole("link", { name: /Presentation/ }).click();
   await expect(
     page.getByRole("heading", { name: "Research question", exact: true }),
