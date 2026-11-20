@@ -14,7 +14,7 @@ from src.ai.baselines import BuyAndHoldPlayer, MovingAverageCrossoverPlayer
 from src.ai.player import BinaryProbabilities, PlayerDecision
 from src.ai.tokenizer import NumericReturnTokenizer
 from src.core.risk_metrics import max_drawdown
-from src.data.split import build_examples, load_split_config
+from src.data.split import assign_splits, build_examples, load_split_config
 from src.database import Base, build_engine, build_session_factory
 from src.eval.execution import (
     DecisionWindow,
@@ -61,6 +61,28 @@ def synthetic_frame():
             low=np.minimum(opens, closes),
         ),
         index=dates,
+    )
+
+
+def dataset_timeline(frame, config):
+    """Only development values; the sealed period is configuration metadata."""
+    frame = frame.loc[frame.index <= pd.Timestamp(config.validation_end)]
+    dates = list(frame.index.date)
+    labels = assign_splits(dates, config)
+    returns = np.diff(np.log(frame.adjusted_close.to_numpy()))
+    return dict(
+        dataset=hashlib.sha256(frame.to_csv().encode()).hexdigest(),
+        split=config.model_dump(mode="json"),
+        points=[
+            dict(date=str(day), split=label.value, value=float(value))
+            for day, previous, label, value in zip(
+                dates[1:], labels[:-1], labels[1:], returns, strict=True
+            )
+            if label is not None and label == previous
+        ],
+        gapBars=sum(label is not None and label.value == "gap" for label in labels),
+        first=str(dates[0]),
+        last=str(dates[-1]),
     )
 
 
@@ -150,6 +172,7 @@ def export(
     window = DecisionWindow(64, len(segment) - 2)
     strategies = []
     cases = []
+    player_traces = []
     with build_session_factory(engine)() as db:
         db.add_all(OHLCVBarORM(instrument="ETF", **bar.model_dump()) for bar in segment)
         db.commit()
@@ -162,6 +185,8 @@ def export(
                 db, "ETF", segment[0].date, segment[-1].date, profile
             ).session_id
             step_session(db, sid, 64)
+            initial = current_snapshot(db, sid)
+            events = []
             equity = [profile.initial_cash]
             exposures, fees = [], []
             for i, t in enumerate(val):
@@ -169,6 +194,16 @@ def export(
                 step_session(db, sid)
                 result = resolve_outcome(db, decision)
                 snapshot = current_snapshot(db, sid)
+                if research:
+                    events.append(
+                        dict(
+                            decision=decision.model_dump(mode="json"),
+                            execution=(
+                                result.model_dump(mode="json") if result else None
+                            ),
+                            portfolio=snapshot.model_dump(mode="json"),
+                        )
+                    )
                 equity.append(snapshot.equity)
                 exposures.append(
                     1 - snapshot.cash / snapshot.equity if snapshot.equity else 0
@@ -205,6 +240,14 @@ def export(
                     fees=fees,
                 )
             )
+            if research:
+                player_traces.append(
+                    dict(
+                        name=player.name,
+                        initial=initial.model_dump(mode="json"),
+                        events=events,
+                    )
+                )
     engine.dispose()
     probs = np.array([case["p"] for case in cases])
     predicted = probs >= 0.5
@@ -252,6 +295,20 @@ def export(
             case["occlusion"] = [float(case["p"] - column[i]) for column in inspection]
             case["period"] = str(segment[i + 64].date)[:7]
     return dict(
+        **(
+            dict(
+                trace=dict(
+                    version=1,
+                    profile=profile.model_dump(mode="json"),
+                    profileHash=profile.sha256,
+                    market=[bar.model_dump(mode="json") for bar in segment],
+                    firstDecision=window.first_decision_index,
+                    players=player_traces,
+                )
+            )
+            if research
+            else {}
+        ),
         accounting=accounting,
         model=model,
         variant=variant,

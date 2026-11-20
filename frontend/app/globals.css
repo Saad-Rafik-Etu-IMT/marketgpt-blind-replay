@@ -180,3 +180,47 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+.competition-selection, .replay-console { padding: 16px 20px; }
+.competition-selection .section-heading, .replay-console .section-heading { margin-bottom: 4px; }
+.competition-selection .section-heading h2, .replay-console .section-heading h2 { margin-bottom: 4px; }
+.competition-selection .study-controls { margin-top: 5px; }
+.replay-console .bench-actions { margin-block: 10px; }
+.replay-seek { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+.replay-seek input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.player-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
+.player-card { text-align: left; padding: 14px; border: 1px solid var(--line); border-top: 4px solid; border-radius: 8px; background: var(--bg); min-width: 0; }
+.player-card:hover, .player-card[aria-pressed="true"] { background: var(--raised); }
+.player-card[aria-pressed="true"] { outline: 1px solid var(--accent); }
+.player-card strong { display: block; font-size: clamp(19px, 2vw, 25px); font-variant-numeric: tabular-nums; margin-block: 4px; letter-spacing: -.04em; }
+.player-card > span { display: block; }
+.player-card > span:first-child { font-size: 12px; font-weight: 700; }
+.player-card > span:nth-child(3) { font-size: 12px; color: var(--muted); }
+.engine-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin-block: 16px; }
+.engine-stages > div { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-width: 0; }
+.stage-link { width: 100%; display: flex; gap: 6px; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); margin-bottom: 8px; font-weight: 650; text-align: left; }
+.stage-link:hover, .stage-link[aria-pressed="true"] { color: var(--accent); text-decoration: underline; }
+.engine-stages strong { font-size: 15px; }
+.engine-stages p { font-size: 12px; }
+.engine-json { font-size: 11px; max-height: 260px; overflow: auto; background: var(--bg); padding: 12px; border-radius: 6px; }
+.explanation-panel { margin-block: 16px; padding: 16px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--bg); }
+.explanation-panel h3 { margin-top: 0; margin-bottom: 12px; }
+.competition-chart-grid, .comparison-figures { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.bench-panel.competition-chart-grid { padding: 12px; }
+.competition-chart-grid .science-figure { margin: 0; }
+.science-figure { min-width: 0; margin-block: 10px; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--panel); }
+.science-figure figcaption { border-bottom: 1px solid var(--line); display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; padding: 10px 14px; gap: 8px; font-size: 13px; }
+.bench-button.plot-export { min-height: 30px; font-size: 11px; padding: 4px 8px; }
+.science-scroll { overflow-x: auto; }
+.science-svg { display: block; width: 100%; min-width: 440px; height: auto; font-family: system-ui, sans-serif; }
+.calibration-bins { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 10px; }
+.split-timeline { display: grid; grid-template-columns: 1.2fr .7fr 1.2fr 1fr; gap: 5px; margin-block: 14px; }
+.split-timeline div { display: grid; align-content: start; gap: 6px; padding: 12px; border-radius: 7px; border: 1px solid var(--line); background: var(--raised); }
+.split-timeline div:nth-child(2) { background: var(--notice); color: var(--notice-fg); }
+.split-timeline div:last-child { background: var(--panel); border-style: dashed; }
+.split-timeline span { font-size: 12px; }
+@media (max-width: 760px) {
+  .competition-chart-grid, .comparison-figures { grid-template-columns: minmax(0,1fr); }
+  .split-timeline { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .player-grid { grid-template-columns: minmax(0,1fr); }
+}

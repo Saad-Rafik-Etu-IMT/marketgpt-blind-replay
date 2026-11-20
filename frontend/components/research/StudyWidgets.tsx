@@ -2,7 +2,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SeriesPlot } from "./SeriesPlot";
-import { API_BASE_URL } from "@/lib/constants";
+import { SensitivityPlot } from "./ResearchFigures";
+import { api, pct } from "@/lib/research/study-api";
+export { api, pct } from "@/lib/research/study-api";
 type Observation = {
   inputs: number[];
   targets: string[];
@@ -22,30 +24,6 @@ type Outcome = {
     reason: string | null;
   }[];
 };
-export const pct = (x: number) => (100 * x).toFixed(1) + "%";
-export async function api<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(
-    (path.startsWith("/jury/")
-      ? (process.env.NEXT_PUBLIC_JURY_API_BASE_URL || "http://localhost:8001") + "/api"
-      : API_BASE_URL + "/api/studies") + path,
-    body === undefined
-      ? {}
-      : {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-  );
-  if (!res.ok) {
-    const msg = await res.json().catch(() => ({}));
-    throw Error(
-      typeof msg.detail === "string"
-        ? msg.detail
-        : "Request failed (" + res.status + ")",
-    );
-  }
-  return res.json();
-}
 export function Decision({
   base,
   index,
@@ -62,6 +40,7 @@ export function Decision({
     [text, t] = useState(""),
     [err, x] = useState(""),
     [busy, b] = useState(false);
+  const [mode, setMode] = useState("scientific");
   const q = useQuery({
     queryKey: ["case", base, index],
     queryFn: () => api<Observation>(base + "/case/" + index),
@@ -85,7 +64,7 @@ export function Decision({
         );
       if (kind === "explain") {
         const v = await api<{ facts: string[]; source: string; check: string }>(
-          base + "/explain/" + index,
+          base + "/explain/" + index + "?mode=" + mode,
           {},
         );
         t(v.source + " · " + v.check + ". " + v.facts.join(" "));
@@ -111,9 +90,18 @@ export function Decision({
       {obs && (
         <>
           <SeriesPlot
-            values={[100, ...obs.inputs.map((_, i) =>
-              100 * Math.exp(obs.inputs.slice(0, i + 1).reduce((sum, value) => sum + value, 0))
-            )]}
+            values={[
+              100,
+              ...obs.inputs.map(
+                (_, i) =>
+                  100 *
+                  Math.exp(
+                    obs.inputs
+                      .slice(0, i + 1)
+                      .reduce((sum, value) => sum + value, 0),
+                  ),
+              ),
+            ]}
             label="Relative adjusted closes (starting base 100)"
             startLabel="t − 64"
             endLabel="Decision · t"
@@ -122,6 +110,26 @@ export function Decision({
             P(up) {pct(obs.p)} · Model {obs.targets[0]} · MA 20/50{" "}
             {obs.targets[1]} · Buy-and-hold {obs.targets[2]}
           </p>
+          <div className="probability-grid">
+            <div>
+              Price rises<strong>{pct(obs.p)}</strong>
+              <meter
+                value={obs.p}
+                min={0}
+                max={1}
+                aria-label="Probability of rising"
+              />
+            </div>
+            <div>
+              Flat or falls<strong>{pct(1 - obs.p)}</strong>
+              <meter
+                value={1 - obs.p}
+                min={0}
+                max={1}
+                aria-label="Probability of not rising"
+              />
+            </div>
+          </div>
           {blind ? (
             <div className="bench-actions">
               {[true, false].map((v) => (
@@ -139,8 +147,11 @@ export function Decision({
             <>
               {obs.outcome && (
                 <p>
-                  Observed next return {pct(Math.expm1(obs.outcome.next))} · model
-                  prediction {(obs.p >= 0.5) === (obs.outcome.next > 0) ? "correct" : "incorrect"}
+                  Observed next return {pct(Math.expm1(obs.outcome.next))} ·
+                  model prediction{" "}
+                  {obs.p >= 0.5 === obs.outcome.next > 0
+                    ? "correct"
+                    : "incorrect"}
                 </p>
               )}
               <h3>Occlusion sensitivity</h3>
@@ -149,6 +160,7 @@ export function Decision({
                 the training mean. Positive values indicate that masking
                 increased P(up).
               </p>
+              <SensitivityPlot values={obs.occlusion} />
               <table>
                 <tbody>
                   {obs.occlusion.map((v, i) => (
@@ -156,11 +168,25 @@ export function Decision({
                       <th>
                         Bars {8 * i - 63} to {8 * i - 56}
                       </th>
-                      <td>{pct(-v)}</td>
+                      <td>{(-100 * v).toFixed(1)} pp</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <label>
+                Explanation language{" "}
+                <select
+                  value={mode}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setMode(e.target.value);
+                    t("");
+                  }}
+                >
+                  <option value="standard">Accessible</option>
+                  <option value="scientific">Scientific</option>
+                </select>
+              </label>{" "}
               <button
                 className="bench-button"
                 disabled={busy}
@@ -178,7 +204,7 @@ export function Decision({
           <h3>Revealed · case {out.index + 1}</h3>
           <p>
             Next return {pct(Math.expm1(out.next))} · Vote{" "}
-            {out.vote === (out.next > 0) ? "correct" : "incorrect"}
+            {out.vote === out.next > 0 ? "correct" : "incorrect"}
           </p>
           {out.actions.map((r, i) => (
             <p key={i}>

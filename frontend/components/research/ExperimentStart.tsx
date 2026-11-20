@@ -8,7 +8,8 @@ export function ExperimentStart() {
         <h2 id="start-title">Explore a blind replay</h2>
         <p>See the inputs available to the model, make a prediction, then reveal the next session.</p>
         <div className="bench-actions">
-          <Link href="/comparison" className="bench-button primary-action">Open blind comparison <span aria-hidden="true">→</span></Link>
+          <Link href="/replay" className="bench-button primary-action">Watch AI competition <span aria-hidden="true">→</span></Link>
+          <Link href="/comparison" className="start-secondary">Open blind comparison</Link>
           <Link href="/studies" className="start-secondary">Train a model <span aria-hidden="true">↗</span></Link>
         </div>
       </div>
