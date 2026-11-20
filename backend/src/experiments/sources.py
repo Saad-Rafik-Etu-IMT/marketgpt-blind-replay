@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 SYNTHETIC = "synthetic"
+SYNTHETIC_SIGNAL = "synthetic_signal"
 SOURCE_NAME = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 
 
@@ -40,7 +41,7 @@ def available(data_dir: Path) -> dict[str, Path]:
     }
 
 
-def synthetic_frames() -> dict[str, pd.DataFrame]:
+def synthetic_frames(signal: bool = False) -> dict[str, pd.DataFrame]:
     """Two seeded random-walk assets, 2005-2019 business days (demonstration data)."""
     out = {}
     for name, seed, drift, vol in (
@@ -50,8 +51,17 @@ def synthetic_frames() -> dict[str, pd.DataFrame]:
         rng = np.random.default_rng(seed)
         dates = pd.bdate_range("2005-01-03", "2019-12-31", name="date")
         n = len(dates)
-        close = 100 * np.exp(np.cumsum(rng.normal(drift, vol, n)))
-        opens = np.r_[close[0], close[:-1] * np.exp(rng.normal(0, vol / 3, n - 1))]
+        returns = rng.normal(drift, vol, n)
+        if signal:
+            # Deliberately strong causal autocorrelation for a positive control,
+            # not an example of realistic market skill.
+            for t in range(1, n):
+                returns[t] += 0.75 * returns[t - 1]
+        close = 100 * np.exp(np.cumsum(returns))
+        opens = np.r_[
+            close[0],
+            close[:-1] * (1 if signal else np.exp(rng.normal(0, vol / 3, n - 1))),
+        ]
         spread = np.abs(rng.normal(0, vol / 2, n))
         out[name] = pd.DataFrame(
             {
@@ -70,7 +80,9 @@ def synthetic_frames() -> dict[str, pd.DataFrame]:
 def load_frames(sources: tuple[str, ...], data_dir: Path) -> dict[str, pd.DataFrame]:
     if sources == (SYNTHETIC,):
         return synthetic_frames()
-    if SYNTHETIC in sources:
+    if sources == (SYNTHETIC_SIGNAL,):
+        return synthetic_frames(signal=True)
+    if SYNTHETIC in sources or SYNTHETIC_SIGNAL in sources:
         raise SourceError("the synthetic source cannot be mixed with real sources")
     files = available(data_dir)
     unknown = [s for s in sources if s not in files]
@@ -120,6 +132,13 @@ def health(data_dir: Path) -> list[dict[str, Any]]:
         except (OSError, ValueError, KeyError) as exc:
             entry.update(status="unreadable", error=str(exc))
         out.append(entry)
+    out.append(
+        {
+            "source": SYNTHETIC_SIGNAL,
+            "kind": "generated positive control (strong causal autocorrelation)",
+            "status": "ok",
+        }
+    )
     out.append(
         {
             "source": SYNTHETIC,

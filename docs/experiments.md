@@ -1,5 +1,11 @@
 # Experiments
 
+**Current integration:** see [research laboratory](research/MASTER_SPECIFICATION.md)
+and [training infrastructure](engineering/TRAINING_INFRASTRUCTURE.md) for
+the later registered Transformer, bounded search, durable queue, nested
+walk-forward selection, prospective holdout and integrated cockpit.
+The original T6 details below remain useful for legacy specs.
+
 `backend/src/experiments/` runs multi-seed campaigns on top of the [features](features.md), [datasets](datasets.md), [targets](targets.md) and [MLP](mlp.md). The `/api/experiments` routes expose it.
 
 It runs alongside `/api/studies` and does not replace it. The study worker (`learning/mlp/run_study.py`), its routes and every saved study are unchanged.
@@ -51,7 +57,7 @@ The spec is stored with its SHA-256 fingerprint. A worker refuses a `spec.json` 
 2. **Training.** Train on `inner_train` and pick the epoch on `inner_validation`, with the preset's configuration capped by the profile and seeded per run.
 3. **Evaluation.** Every head's metrics on `inner_validation` (T4 `evaluate`).
 4. **Validation**, only if the spec reads it. Each read is appended to `<data_dir>/experiments/validation_reads.json` (experiment, run, time, dataset and spec fingerprints), so repeated looks at validation stay visible.
-5. **Walk-forward** (confirmation). 3 expanding folds inside the training rows, from 40% of the training dates. Each fold has a purged and embargoed training side, refits its own scaler, trains a fresh model for the run's best epoch count without early stopping, and reports every head.
+5. **Walk-forward** (confirmation). Three expanding folds inside training, with a nested purged selection set. Every fold refits its scaler and target encoder on the earlier fit rows, independently selects its epoch, and evaluates only the outer fold.
 6. **Checkpoint and report.** The checkpoint is written (T5, with manifest), then the run report.
 
 A run that raises (divergence, invalid data) is recorded with its error and the campaign continues (`complete_with_failures`). Cancellation is checked after every epoch.

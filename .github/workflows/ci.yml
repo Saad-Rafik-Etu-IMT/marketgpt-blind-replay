@@ -53,7 +53,7 @@ jobs:
       - name: Test all reference-model variants
         run: |
           python -c "import torch; print(torch.__version__)"
-          python -m pytest -o addopts="" -q tests/test_reference_transformer.py
+          python -m pytest -o addopts="" -q tests/test_reference_transformer.py tests/test_laboratory.py::test_registered_transformer_trains_and_evaluates
 
   frontend:
     name: Frontend — typecheck, tests, build

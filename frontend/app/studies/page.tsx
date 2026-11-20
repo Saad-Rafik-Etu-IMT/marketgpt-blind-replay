@@ -347,7 +347,7 @@ function Results({ r, inspect }: { r: Report; inspect: (i: number) => void }) {
             filtered {r.bestDecisions.validationFilteredCount} noisy 1d bounces
             ahead of drawdowns · held through{" "}
             {r.bestDecisions.validationTrendHeldCount} minor 1d dips · hindsight
-            ceiling return {pct(r.bestDecisions.oracleCumulativeReturn)} (max DD{" "}
+            hypothetical diagnostic return {pct(r.bestDecisions.oracleCumulativeReturn)} (max DD{" "}
             {pct(r.bestDecisions.oracleMaxDrawdown)}).
           </p>
           <div className="table-scroll" style={{ maxHeight: 260 }}>
@@ -818,7 +818,7 @@ export default function Studies() {
                 {r && (
                   <p>
                     {run.model === "MLP"
-                      ? "64 blind returns + engineered multi-horizon/volatility/trend features → RobustScaler → 128-64-32 BatchNorm/Dropout/Residual Deep MLP (trained with hindsight best-decision guidance) → two classes"
+                      ? "64 blind returns + engineered multi-horizon/volatility/trend features → RobustScaler → 128-64-32 BatchNorm/Dropout/Residual Deep MLP → two classes (see the saved run protocol for selection and label details)"
                       : "64 quantile tokens → 16-dimensional embeddings → two attention heads → mean pooling → two classes"}{" "}
                     · {r.parameters} parameters · {s.config.epochs} epochs
                   </p>

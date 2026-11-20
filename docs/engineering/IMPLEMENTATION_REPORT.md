@@ -131,3 +131,27 @@ and testable. The core deterministic simulation, model methodology and
 scientific claims were preserved. This is an incremental modernization, not
 a declaration of production readiness, perfect static typing, or a guarantee
 of investment performance.
+
+---
+
+## Research laboratory implementation (base ef5ba78)
+
+The latest main already contained T1–T7 causal features, dataset manifests,
+target registry, NumPy models, experiment orchestration and scientific
+evaluation. The research-laboratory branch adds the integrated six-view
+cockpit, persistent queue/supervisor, bounded search, corrected nested
+walk-forward folds, development identity locks, epoch progress, registered
+reference Transformer and MLP replay through the existing broker,
+statistical evidence plots, prospective holdout lock/CLI, and report exports.
+
+All 1,002 backend tests and 10 browser tests passed locally, as did the
+frontend production build and migration checks. Five-seed positive and
+noise controls were actually executed, with results in
+[RESULTS_AND_CONCLUSIONS.md](../research/RESULTS_AND_CONCLUSIONS.md).
+The synthetic prospective test is fixture-only; no protected real test was
+evaluated. The [implementation backlog](IMPLEMENTATION_BACKLOG.md) precisely
+identifies completed core scope, deferred extensions and the authorized
+final evaluation blocker. See [validation evidence](VALIDATION_REPORT.md).
+
+The original audit's figures and action IDs above are historical; they do
+not describe the aggregate latest test count.
