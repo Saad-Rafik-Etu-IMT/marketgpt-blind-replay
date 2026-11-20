@@ -60,8 +60,13 @@ function Review({ run }: { run: Comparison }) {
           <summary>Training and provenance</summary>
           <p>
             65 adjusted closes → 64 log returns → train-only normalization →
-            NumPy MLP (32 hidden units). Lowest validation loss selects the
-            checkpoint. Target long when P(up) ≥ 0.5.
+            145 engineered features → NumPy MLP (128 → 64 → 32). The label is
+            the return earned from the next open to the following open. An
+            inner-validation period inside training selects the checkpoint,
+            fits the temperature and the default-long trading rule (minimum
+            holding period); validation is evaluated once. Classification
+            metrics use P(up) ≥ 0.5. Runs exported before this change used the
+            close-to-close label and validation-tuned selection.
           </p>
           <p style={{ overflowWrap: "anywhere" }}>
             Dataset {run.dataset}
@@ -217,7 +222,7 @@ function Review({ run }: { run: Comparison }) {
           <div aria-live="polite">
             <h3>Next session</h3>
             <p>
-              Adjusted close return <strong>{pct(Math.expm1(c.next))}</strong>.{" "}
+              Labelled next return <strong>{pct(Math.expm1(c.next))}</strong>.{" "}
               {guess !== null &&
                 (guess === c.next > 0
                   ? "Your prediction was correct."

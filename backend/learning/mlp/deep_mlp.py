@@ -2,8 +2,9 @@
 
 Combines the architecture and feature engineering of Projet_LLM.ipynb
 (RobustScaler, 128 -> 64 -> 32 -> 2 MLP with BatchNorm, ReLU, Dropout,
-AdamW, and balanced class weights) with the Blind Replay 64-return
-observation contract and an execution-aware Hindsight Best-Decisions logger.
+AdamW) with the Blind Replay 64-return observation contract and an
+execution-aware Hindsight Best-Decisions logger. Selection and temperature use
+an inner-validation set only (see ``protocol.py`` and docs/training_audit.md).
 """
 
 from __future__ import annotations
@@ -48,6 +49,10 @@ def compute_best_decisions(
         }
 
     switch_cost = max(spread_bps / 10000.0, 0.0005)
+    # The split guarantees only bar ``t + 1`` (label_horizon = 1) lies inside the
+    # set, so forward paths stop at the set's last label bar. Without this clamp
+    # the last ``horizon - 1`` examples read gap bars beyond the set boundary.
+    last_label_bar = int(indices[-1]) + 1
     next_1d = np.zeros(n_idx, dtype=np.float64)
     fwd_h = np.zeros(n_idx, dtype=np.float64)
     fwd_min = np.zeros(n_idx, dtype=np.float64)
@@ -55,7 +60,7 @@ def compute_best_decisions(
 
     for i, t in enumerate(indices):
         r1 = float(values[t + 1]) if t + 1 < n_total else 0.0
-        end_h = min(n_total, t + 1 + horizon)
+        end_h = min(n_total, t + 1 + horizon, last_label_bar + 1)
         path = values[t + 1 : end_h]
         cum_path = np.cumsum(path) if len(path) > 0 else np.array([0.0])
         past_window = values[max(0, t - 13) : t + 1]
@@ -553,61 +558,78 @@ def _macro_f1(pred_binary: np.ndarray, y_true: np.ndarray) -> float:
     return float(np.mean(scores))
 
 
+def fit_temperature(diff_logits: np.ndarray, y: np.ndarray) -> float:
+    """Temperature minimising the binary NLL of sigmoid(diff / T) on held-out data.
+
+    Searched on a log grid; T > 1 softens, T < 1 sharpens. Only data the model
+    was not trained on (inner-validation) may be passed here.
+    """
+    if len(y) == 0 or float(np.std(diff_logits)) < 1e-9:
+        return 1.0
+    y = np.asarray(y, dtype=np.float64)
+    best_t, best_nll = 1.0, np.inf
+    for t in np.exp(np.linspace(np.log(0.25), np.log(20.0), 121)):
+        z = diff_logits / t
+        # log(1 + exp(-|z|)) formulation of the logistic NLL, numerically stable
+        nll = float(np.mean(np.logaddexp(0.0, z) - y * z))
+        if nll < best_nll:
+            best_t, best_nll = float(t), nll
+    return best_t
+
+
 def train_deep_mlp(
     xt_raw: np.ndarray,
-    yt_next: np.ndarray,
-    xv_raw: np.ndarray,
-    yv_next: np.ndarray,
+    yt: np.ndarray,
+    xs_raw: np.ndarray,
+    ys: np.ndarray,
     *,
     train_oracle: dict[str, Any] | None = None,
-    val_oracle: dict[str, Any] | None = None,
     seed: int = 0,
     epochs: int = 40,
     lr: float = 1.5e-3,
     weight_decay: float = 2e-3,
     dropout: float = 0.25,
     batch_size: int = 64,
+    class_balance: bool = False,
+    calibrate: bool = True,
 ) -> tuple[dict[str, np.ndarray], list[dict[str, Any]], int]:
-    """Train the Projet_LLM.ipynb Deep MLP with RobustScaler, AdamW, and Oracle guidance."""
+    """Train the deep MLP; ``xs``/``ys`` is the SELECTION set (inner-validation).
+
+    Protocol (training audit 2026-11-20):
+    - the retained epoch has the lowest selection-set cross-entropy;
+    - an optional temperature is fitted by NLL on the same selection set;
+    - no class re-weighting by default (it fights the market's drift);
+    - the oracle soft targets are opt-in (``train_oracle``); they were neutral
+      for discrimination in the audit.
+    The validation set must not be passed here; it is evaluated once afterwards.
+    """
     feat_train = extract_blind_features(xt_raw)
-    feat_val = extract_blind_features(xv_raw)
+    feat_sel = extract_blind_features(xs_raw)
     median, scale = fit_robust_scaler(feat_train)
     x_train = transform_robust(feat_train, median, scale)
-    x_val = transform_robust(feat_val, median, scale)
+    x_sel = transform_robust(feat_sel, median, scale)
 
     n_train, n_in = x_train.shape
     params = init_deep_mlp(n_in=n_in, h1=128, h2=64, h3=32, n_out=2, seed=seed)
     rng = np.random.default_rng(seed)
 
-    # Balanced class weights (as in Projet_LLM.ipynb compute_class_weight("balanced"))
-    count_0 = max(1, int(np.sum(yt_next == 0)))
-    count_1 = max(1, int(np.sum(yt_next == 1)))
-    w_cls = np.array(
-        [n_train / (2.0 * count_0), n_train / (2.0 * count_1)], dtype=np.float64
+    count_0 = max(1, int(np.sum(yt == 0)))
+    count_1 = max(1, int(np.sum(yt == 1)))
+    w_cls = (
+        np.array([n_train / (2.0 * count_0), n_train / (2.0 * count_1)])
+        if class_balance
+        else np.ones(2)
     )
-
-    # Build Oracle-guided soft targets & sample weights:
-    # When Oracle best decision and next-day label agree, target is sharp (0 or 1).
-    # When 1-day return is a noisy counter-trend blip, smooth toward Oracle decision.
-    y_next_onehot = np.eye(2, dtype=np.float64)[yt_next]
+    y_onehot = np.eye(2, dtype=np.float64)[yt]
     if train_oracle is not None and len(train_oracle["labels"]) == n_train:
-        y_best = train_oracle["labels"]
-        y_best_onehot = np.eye(2, dtype=np.float64)[y_best]
-        soft_train = 0.72 * y_next_onehot + 0.28 * y_best_onehot
-        base_weights = train_oracle["weights"] * w_cls[yt_next]
+        soft_train = 0.72 * y_onehot + 0.28 * np.eye(2)[train_oracle["labels"]]
+        base_weights = train_oracle["weights"] * w_cls[yt]
     else:
-        soft_train = y_next_onehot
-        base_weights = w_cls[yt_next]
+        soft_train = y_onehot
+        base_weights = w_cls[yt]
     base_weights = base_weights / np.mean(base_weights)
+    y_sel_onehot = np.eye(2, dtype=np.float64)[ys]
 
-    y_val_onehot = np.eye(2, dtype=np.float64)[yv_next]
-    if val_oracle is not None and len(val_oracle["labels"]) == len(yv_next):
-        y_val_best_onehot = np.eye(2, dtype=np.float64)[val_oracle["labels"]]
-        soft_val = 0.75 * y_val_onehot + 0.25 * y_val_best_onehot
-    else:
-        soft_val = y_val_onehot
-
-    # AdamW optimizer state
     trainable_keys = [
         k for k in params if not k.startswith("rm") and not k.startswith("rv")
     ]
@@ -617,12 +639,11 @@ def train_deep_mlp(
     step_num = 0
 
     history: list[dict[str, Any]] = []
-    best_score = -np.inf
-    best_val_loss = np.inf
+    best_loss = np.inf
     best_params: dict[str, np.ndarray] | None = None
+    selected_epoch = 0
 
     for epoch in range(1, epochs + 1):
-        # Cosine annealing learning rate
         cosine = 0.5 * (1.0 + math.cos(math.pi * (epoch - 1) / max(1, epochs)))
         lr_t = lr * (0.15 + 0.85 * cosine)
 
@@ -633,19 +654,11 @@ def train_deep_mlp(
                 continue
             step_num += 1
             _, cache = deep_mlp_forward(
-                x_train[batch_idx],
-                params,
-                training=True,
-                dropout=dropout,
-                rng=rng,
+                x_train[batch_idx], params, training=True, dropout=dropout, rng=rng
             )
             grads = deep_mlp_backward(
-                cache,
-                soft_train[batch_idx],
-                base_weights[batch_idx],
-                params,
+                cache, soft_train[batch_idx], base_weights[batch_idx], params
             )
-
             bias_corr1 = 1.0 - beta1**step_num
             bias_corr2 = 1.0 - beta2**step_num
             for k in trainable_keys:
@@ -654,113 +667,45 @@ def train_deep_mlp(
                 v_state[k] = beta2 * v_state[k] + (1.0 - beta2) * (g * g)
                 m_hat = m_state[k] / bias_corr1
                 v_hat = v_state[k] / bias_corr2
-                # Decoupled weight decay on weight matrices
                 if k.startswith("W"):
                     params[k] *= 1.0 - lr_t * weight_decay
                 params[k] -= lr_t * m_hat / (np.sqrt(v_hat) + eps_adam)
 
-        # Evaluate on full train and validation sets
         train_probs, _ = deep_mlp_forward(x_train, params, training=False)
-        val_probs, _ = deep_mlp_forward(x_val, params, training=False)
-
-        train_loss = _weighted_cross_entropy(train_probs, y_next_onehot)
-        val_loss = _weighted_cross_entropy(val_probs, y_val_onehot)
-        val_oracle_loss = _weighted_cross_entropy(val_probs, soft_val)
-        val_preds = val_probs.argmax(axis=1)
-        val_acc = float(np.mean(val_preds == yv_next))
-        val_f1 = _macro_f1(val_preds, yv_next)
-
+        sel_probs, _ = deep_mlp_forward(x_sel, params, training=False)
+        train_loss = _weighted_cross_entropy(train_probs, y_onehot)
+        sel_loss = _weighted_cross_entropy(sel_probs, y_sel_onehot)
+        sel_preds = sel_probs.argmax(axis=1)
         history.append(
             {
                 "epoch": epoch,
                 "train_loss": float(train_loss),
-                "val_loss": float(val_loss),
-                "val_accuracy": val_acc,
-                "val_f1": val_f1,
+                "val_loss": float(sel_loss),
+                "val_accuracy": float(np.mean(sel_preds == ys)),
+                "val_f1": _macro_f1(sel_preds, ys),
             }
         )
-
-        # Model selection score: rewards low validation loss + high balanced Macro-F1
-        composite_score = val_f1 - 0.35 * val_oracle_loss
-        if composite_score > best_score or (
-            best_params is None and val_loss < best_val_loss
-        ):
-            best_score = composite_score
-            best_val_loss = min(best_val_loss, val_loss)
+        if best_params is None or sel_loss < best_loss:
+            best_loss = sel_loss
             best_params = {k: v.copy() for k, v in params.items()}
+            selected_epoch = epoch
 
     assert best_params is not None
+    for entry in history:
+        entry["selected"] = entry["epoch"] == selected_epoch
 
-    # Post-training logit threshold & temperature calibration on validation
-    # Ensures P(up) >= 0.5 achieves balanced Macro-F1 and well-calibrated probabilities
-    _, val_cache = deep_mlp_forward(x_val, best_params, training=False)
-    val_logits = val_cache["logits"]
-    diff_logits = val_logits[:, 1] - val_logits[:, 0]
+    temperature = 1.0
+    if calibrate:
+        _, sel_cache = deep_mlp_forward(x_sel, best_params, training=False)
+        diff = sel_cache["logits"][:, 1] - sel_cache["logits"][:, 0]
+        temperature = fit_temperature(diff, ys)
+        best_params["W4"] = best_params["W4"] / temperature
+        best_params["b4"] = best_params["b4"] / temperature
+    best_params["temperature"] = np.array(temperature)
 
-    # Search candidate bias shifts around median/quantiles of logit difference
-    best_cal_score = -np.inf
-    best_delta = 0.0
-    best_temp = 1.0
-    val_oracle_labels = (
-        val_oracle["labels"]
-        if val_oracle is not None and len(val_oracle["labels"]) == len(yv_next)
-        else yv_next
-    )
-
-    candidate_deltas = np.unique(
-        np.r_[
-            0.0,
-            np.quantile(diff_logits, np.linspace(0.15, 0.65, 51)),
-        ]
-    )
-    # Estimate next-day return proxy from validation oracle records if available
-    val_next_rets = (
-        np.array([r["nextReturn"] for r in val_oracle["records"]], dtype=np.float64)
-        if val_oracle is not None and len(val_oracle.get("records", [])) == len(yv_next)
-        else (2.0 * yv_next - 1.0) * 0.005
-    )
-    bh_ret = float(np.sum(val_next_rets))
-    val_std = float(np.std(val_next_rets)) + 1e-8
-
-    for delta in candidate_deltas:
-        pred_bin = (diff_logits - delta >= 0.0).astype(np.int64)
-        up_ratio = float(np.mean(pred_bin))
-        if not (0.25 <= up_ratio <= 0.78):
-            continue
-        f1_next = _macro_f1(pred_bin, yv_next)
-        f1_oracle = _macro_f1(pred_bin, val_oracle_labels)
-        acc_next = float(np.mean(pred_bin == yv_next))
-        # Net directional capture (rewarding staying long in positive drift & flat in crashes)
-        switches = float(np.sum(np.abs(np.diff(np.r_[0, pred_bin]))))
-        strat_ret = float(np.sum(pred_bin * val_next_rets)) - switches * 0.0001
-        edge_vs_bh = (strat_ret - bh_ret) / (val_std * math.sqrt(len(yv_next)))
-        cal_score = (
-            0.50 * f1_next
-            + 0.25 * f1_oracle
-            + 0.15 * acc_next
-            + 0.10 * np.clip(edge_vs_bh, -0.5, 0.5)
-        )
-        if cal_score > best_cal_score:
-            best_cal_score = cal_score
-            best_delta = float(delta)
-
-    # Calibrate temperature so probabilities stay well-calibrated around 0.5
-    std_diff = float(np.std(diff_logits))
-    if std_diff > 1e-6:
-        best_temp = float(np.clip(std_diff / 0.55, 0.5, 3.0))
-
-    best_params["W4"] = best_params["W4"] / best_temp
-    best_params["b4"] = best_params["b4"] / best_temp
-    best_params["b4"][1] -= 0.5 * (best_delta / best_temp)
-    best_params["b4"][0] += 0.5 * (best_delta / best_temp)
-
-    # Attach RobustScaler statistics directly in checkpoint dict
     best_params["scaler_median"] = median
     best_params["scaler_scale"] = scale
-
-    param_count = sum(
-        best_params[k].size for k in trainable_keys
-    )
+    param_count = sum(best_params[k].size for k in trainable_keys)
     return best_params, history, param_count
 
 

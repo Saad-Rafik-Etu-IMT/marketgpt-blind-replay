@@ -12,7 +12,7 @@ type Run = {
   seed: number;
   f1: number;
   accuracy: number;
-  curves: { step: number; trainingLoss: number; validationLoss: number }[];
+  curves: { step: number; trainingLoss: number; validationLoss: number; selected?: boolean }[];
 };
 export function ModelFigures({
   runs,
@@ -166,10 +166,14 @@ export function ModelFigures({
           <h3>Learning curves on shared axes</h3>
           <div className="comparison-figures">
             {matched.map((r) => {
-              const best = r.curves.reduce(
-                (a, b) => (b.validationLoss < a.validationLoss ? b : a),
-                r.curves[0],
-              );
+              // Prefer the epoch the trainer actually retained; older runs
+              // without the flag selected the first minimum validation loss.
+              const best =
+                r.curves.find((c) => c.selected) ??
+                r.curves.reduce(
+                  (a, b) => (b.validationLoss < a.validationLoss ? b : a),
+                  r.curves[0],
+                );
               return (
                 <div key={r.key}>
                   <LinePlot

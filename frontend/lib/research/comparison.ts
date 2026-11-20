@@ -19,7 +19,7 @@ export type Comparison = {
   dataset: string;
   checkpoint: string;
   profile: string;
-  curves: { step: number; trainingLoss: number; validationLoss: number }[];
+  curves: { step: number; trainingLoss: number; validationLoss: number; selected?: boolean }[];
   strategies: { name: string; gain: number; dd: number }[];
   cases: { p: number; next: number; actions: Order[] }[];
   returns: number[];

@@ -39,7 +39,12 @@ def overview_entry(key: str, report: dict[str, Any]) -> dict[str, Any]:
         variant=report["variant"],
         seed=report["seed"],
         f1=report["macroF1"],
-        loss=min(x["validationLoss"] for x in report["curves"]),
+        # Runs that flag their retained epoch (the deep MLP selects by a
+        # composite score) report that epoch; older runs keep the minimum.
+        loss=next(
+            (x["validationLoss"] for x in report["curves"] if x.get("selected")),
+            min(x["validationLoss"] for x in report["curves"]),
+        ),
         curves=report["curves"],
         hasTrace="trace" in report,
         accuracy=sum((c["p"] >= 0.5) == (c["next"] > 0) for c in cases) / len(cases),

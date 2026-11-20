@@ -30,7 +30,7 @@ type Run = {
   f1: number;
   accuracy: number;
   loss: number;
-  curves: { step: number; trainingLoss: number; validationLoss: number }[];
+  curves: { step: number; trainingLoss: number; validationLoss: number; selected?: boolean }[];
 };
 type Study = {
   config: { source: string; epochs: number };
@@ -129,7 +129,8 @@ function Launcher({
 }) {
   const [source, s] = useState("synthetic"),
     [models, m] = useState("MLP"),
-    [seeds, f] = useState("0"),
+    [seeds, f] = useState("0,1,2,3,4"),
+    [pooled, pl] = useState(false),
     [epochs, e] = useState(8),
     [sweep, a] = useState(false),
     [busy, b] = useState(false),
@@ -149,6 +150,7 @@ function Launcher({
         source,
         seeds: seeds.split(",").map(Number),
         epochs,
+        pooled: pooled && source !== "synthetic",
         models: models.split("+"),
         variants: sweep
           ? ["reference", "no-position", "no-dropout", "no-decay", "fixed-lr"]
@@ -206,6 +208,16 @@ function Launcher({
             onChange={(v) => e(Number(v.target.value))}
           />
         </label>
+        {source !== "synthetic" && (
+          <label title="Train on every downloaded ETF; replay the selected one">
+            <input
+              type="checkbox"
+              checked={pooled}
+              onChange={(v) => pl(v.target.checked)}
+            />{" "}
+            Train on all local ETFs
+          </label>
+        )}
         {models.includes("Transformer") && (
           <label>
             <input

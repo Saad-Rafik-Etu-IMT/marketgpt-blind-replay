@@ -1,11 +1,21 @@
-"""Isolated worker for reproducible local validation studies."""
+"""Isolated worker for reproducible local validation studies.
 
+Headless usage (e.g. on a GPU server, from ``backend/``):
+
+    python learning/mlp/run_study.py <study_folder> [--device cuda]
+
+``<study_folder>/config.json`` holds the study specification written by the
+API (``source``, ``csv``, ``models``, ``variants``, ``seeds``, ``epochs`` and
+optionally ``pooled`` and ``device``). ``--device`` overrides the config and
+only affects the Transformer; the NumPy MLP always runs on CPU.
+"""
+
+import argparse
 import json
-import sys
 from pathlib import Path
 
 import pandas as pd
-from export_comparison import dataset_timeline, export, synthetic_frame
+from export_comparison import dataset_timeline, export, load_pool, synthetic_frame
 
 from src.data.split import load_split_config
 from src.eval.execution import load_benchmark_profile
@@ -13,13 +23,19 @@ from src.services.study_artifacts import overview_entry, run_keys
 from src.services.study_artifacts import write_json as write
 
 
-def work(root):
+def work(root, device=None):
     spec = json.loads((root / "config.json").read_text())
     source = spec["source"]
+    device = device or spec.get("device", "cpu")
     frame = (
         synthetic_frame()
         if source == "synthetic"
         else pd.read_csv(spec["csv"], parse_dates=["date"], index_col="date")
+    )
+    pool = (
+        load_pool(Path(spec["csv"]).parent)
+        if spec.get("pooled") and source != "synthetic"
+        else None
     )
     total = len(run_keys(spec))
     completed = 0
@@ -57,6 +73,9 @@ def work(root):
                     research=True,
                     config=config,
                     profile=profile,
+                    name=source,
+                    pool=pool,
+                    device=device,
                 )
                 if result["dataset"] != timeline["dataset"]:
                     raise ValueError("Timeline and run use different data")
@@ -96,9 +115,9 @@ def work(root):
     )
 
 
-def run(folder):
+def run(folder, device=None):
     try:
-        work(folder)
+        work(folder, device)
     except Exception as exc:
         status_path = folder / "status.json"
         previous = (
@@ -114,4 +133,8 @@ def run(folder):
 
 
 if __name__ == "__main__":
-    run(Path(sys.argv[1]))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("folder", type=Path, help="study folder containing config.json")
+    parser.add_argument("--device", default=None, help="cpu or cuda[:N] (Transformer only)")
+    args = parser.parse_args()
+    run(args.folder, args.device)

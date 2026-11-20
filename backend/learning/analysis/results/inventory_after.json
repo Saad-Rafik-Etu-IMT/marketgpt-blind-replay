@@ -1,0 +1,3939 @@
+[
+  {
+    "study": "285e9073-0a16-48a6-afbe-0d17b6dea548",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 0,
+    "epochs": 8,
+    "n_train": 4761,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5356017643352237,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.5702875399361023,
+    "accuracy_ci": [
+      0.5303514376996805,
+      0.6070287539936102
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.04313099041533546,
+      0.011182108626198083
+    ],
+    "p_binom_vs_half": 0.0004969608236145947,
+    "p_binom_better_than_base": 0.7797683158939426,
+    "macro_f1": 0.47646983842736385,
+    "macro_f1_ci": [
+      0.44091066560102465,
+      0.5093593801280177
+    ],
+    "macro_f1_null95": 0.4881470911018464,
+    "macro_f1_perm_p": 0.20739630184907545,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.8386581469648562,
+    "log_loss": 0.6850169152319308,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.2458857520994604,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.06762916260419449,
+    "p_mean": 0.538443049921001,
+    "p_std": 0.04407262540324153,
+    "p_within_0_05": 0.6086261980830671,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 4,
+      "[0.40,0.45)": 10,
+      "[0.45,0.50)": 87,
+      "[0.50,0.55)": 294,
+      "[0.55,0.60)": 186,
+      "[0.60,0.70)": 43,
+      "[0.70,1.00)": 2
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 4,
+        "predicted": 0.3739850485597483,
+        "observed": 0.25
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 97,
+        "predicted": 0.47564682675276737,
+        "observed": 0.5567010309278351
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 480,
+        "predicted": 0.5442229261148791,
+        "observed": 0.6020833333333333
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 43,
+        "predicted": 0.6229397193815075,
+        "observed": 0.4883720930232558
+      },
+      {
+        "bin": "0.7-0.8",
+        "n": 2,
+        "predicted": 0.7091271963711758,
+        "observed": 0.5
+      }
+    ],
+    "overview_val_loss": 0.68750686429477,
+    "curves": {
+      "min_val_epoch": 3,
+      "min_val_loss": 0.68750686429477,
+      "first_val": 0.6946670395066045,
+      "last_val": 0.6944985344280344,
+      "first_train": 0.6793784323208456,
+      "last_train": 0.6469538128270189,
+      "gap_last": 0.04754472160101553,
+      "verdict": "train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5926517571884984,
+    "model_oracle_macro_f1": 0.48424429819034787,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 1128,
+      "classBalance": false,
+      "temperature": 1.2930006815315507,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -0.7443994184483397,
+        "inner_log_return": 0.6001713615202011,
+        "inner_always_long_log_return": 0.6001713615202011
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "SPY"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": null,
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "285e9073-0a16-48a6-afbe-0d17b6dea548",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 1,
+    "epochs": 8,
+    "n_train": 4761,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5356017643352237,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.5814696485623003,
+    "accuracy_ci": [
+      0.5383386581469649,
+      0.6261980830670927
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.03035143769968051,
+      0.022364217252396165
+    ],
+    "p_binom_vs_half": 5.2307590487264214e-05,
+    "p_binom_better_than_base": 0.5811896936456348,
+    "macro_f1": 0.4840637700854378,
+    "macro_f1_ci": [
+      0.44365677442541057,
+      0.5233819238171795
+    ],
+    "macro_f1_null95": 0.4840637700854378,
+    "macro_f1_perm_p": 0.06796601699150424,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.8498402555910544,
+    "log_loss": 0.684882768081976,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.24585792084897085,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.05657442633634804,
+    "p_mean": 0.5418745650458481,
+    "p_std": 0.043861017488720816,
+    "p_within_0_05": 0.549520766773163,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 1,
+      "[0.40,0.45)": 14,
+      "[0.45,0.50)": 79,
+      "[0.50,0.55)": 265,
+      "[0.55,0.60)": 219,
+      "[0.60,0.70)": 48,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 1,
+        "predicted": 0.3448518703636118,
+        "observed": 0.0
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 93,
+        "predicted": 0.4729854056174803,
+        "observed": 0.5161290322580645
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 484,
+        "predicted": 0.5473373981273717,
+        "observed": 0.6033057851239669
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 48,
+        "predicted": 0.6243683840054965,
+        "observed": 0.5416666666666666
+      }
+    ],
+    "overview_val_loss": 0.6883258293789984,
+    "curves": {
+      "min_val_epoch": 7,
+      "min_val_loss": 0.6883258293789984,
+      "first_val": 0.6896289896033431,
+      "last_val": 0.6892172656788784,
+      "first_train": 0.6786299408199594,
+      "last_train": 0.6487915415883804,
+      "gap_last": 0.04042572409049805,
+      "verdict": "val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5718849840255591,
+    "model_oracle_macro_f1": 0.45073336825563126,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 1128,
+      "classBalance": false,
+      "temperature": 1.552008766082682,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -0.5048981924430717,
+        "inner_log_return": 0.6001713615202011,
+        "inner_always_long_log_return": 0.6001713615202011
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "SPY"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": null,
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "285e9073-0a16-48a6-afbe-0d17b6dea548",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 2,
+    "epochs": 8,
+    "n_train": 4761,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5356017643352237,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.5399361022364217,
+    "accuracy_ci": [
+      0.4984025559105431,
+      0.5782747603833865
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.08146964856230032,
+      -0.006389776357827476
+    ],
+    "p_binom_vs_half": 0.05009237350353215,
+    "p_binom_better_than_base": 0.9893622028533505,
+    "macro_f1": 0.4953873712494402,
+    "macro_f1_ci": [
+      0.45846336713129204,
+      0.53217991983467
+    ],
+    "macro_f1_null95": 0.5234214061800269,
+    "macro_f1_perm_p": 0.4617691154422789,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.7124600638977636,
+    "log_loss": 0.6881559111221416,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.2475185703788465,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.06928929790324374,
+    "p_mean": 0.5180017564174278,
+    "p_std": 0.03502883962413166,
+    "p_within_0_05": 0.792332268370607,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 2,
+      "[0.40,0.45)": 18,
+      "[0.45,0.50)": 160,
+      "[0.50,0.55)": 336,
+      "[0.55,0.60)": 105,
+      "[0.60,0.70)": 5,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 2,
+        "predicted": 0.38055109947356935,
+        "observed": 0.0
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 178,
+        "predicted": 0.47837244685582836,
+        "observed": 0.5842696629213483
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 441,
+        "predicted": 0.5335526167224539,
+        "observed": 0.5873015873015873
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 5,
+        "predicted": 0.6121995606846118,
+        "observed": 0.6
+      }
+    ],
+    "overview_val_loss": 0.6918527661594125,
+    "curves": {
+      "min_val_epoch": 4,
+      "min_val_loss": 0.6918527661594125,
+      "first_val": 0.6994549254673245,
+      "last_val": 0.6930021619266364,
+      "first_train": 0.6817166642834843,
+      "last_train": 0.6457162929391382,
+      "gap_last": 0.0472858689874982,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5303514376996805,
+    "model_oracle_macro_f1": 0.47206636604591923,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 1128,
+      "classBalance": false,
+      "temperature": 1.7316950661947657,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -0.7950438197099383,
+        "inner_log_return": 0.6001713615202011,
+        "inner_always_long_log_return": 0.6001713615202011
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "SPY"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": null,
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "285e9073-0a16-48a6-afbe-0d17b6dea548",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 3,
+    "epochs": 8,
+    "n_train": 4761,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5356017643352237,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.549520766773163,
+    "accuracy_ci": [
+      0.5079872204472844,
+      0.5910543130990416
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.07028753993610223,
+      -0.001597444089456869
+    ],
+    "p_binom_vs_half": 0.014701087203108074,
+    "p_binom_better_than_base": 0.9656357553177863,
+    "macro_f1": 0.4873501533314748,
+    "macro_f1_ci": [
+      0.4467288279942313,
+      0.5273424718725421
+    ],
+    "macro_f1_null95": 0.5128008549391321,
+    "macro_f1_perm_p": 0.42978510744627685,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.7635782747603834,
+    "log_loss": 0.6911964884815466,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.2490111437504487,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.06705239221738744,
+    "p_mean": 0.5194493920431963,
+    "p_std": 0.036544173736494386,
+    "p_within_0_05": 0.7843450479233227,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 3,
+      "[0.40,0.45)": 20,
+      "[0.45,0.50)": 125,
+      "[0.50,0.55)": 366,
+      "[0.55,0.60)": 103,
+      "[0.60,0.70)": 9,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 3,
+        "predicted": 0.3862458610810719,
+        "observed": 0.6666666666666666
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 145,
+        "predicted": 0.4728438477384829,
+        "observed": 0.5724137931034483
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 469,
+        "predicted": 0.5327913975269828,
+        "observed": 0.5884861407249466
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 9,
+        "predicted": 0.6194509415069694,
+        "observed": 0.5555555555555556
+      }
+    ],
+    "overview_val_loss": 0.6925573856549655,
+    "curves": {
+      "min_val_epoch": 1,
+      "min_val_loss": 0.6925573856549655,
+      "first_val": 0.6925573856549655,
+      "last_val": 0.6956560802428301,
+      "first_train": 0.6769567836153448,
+      "last_train": 0.645989138040751,
+      "gap_last": 0.04966694220207912,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5559105431309904,
+    "model_oracle_macro_f1": 0.4793882899161172,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 1128,
+      "classBalance": false,
+      "temperature": 1.8629001859027352,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -0.3344843050885333,
+        "inner_log_return": 0.6001713615202011,
+        "inner_always_long_log_return": 0.6001713615202011
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "SPY"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": null,
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "285e9073-0a16-48a6-afbe-0d17b6dea548",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 4,
+    "epochs": 8,
+    "n_train": 4761,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5356017643352237,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.5511182108626198,
+    "accuracy_ci": [
+      0.5079872204472844,
+      0.597444089456869
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.06389776357827476,
+      -0.003194888178913738
+    ],
+    "p_binom_vs_half": 0.011742732562709584,
+    "p_binom_better_than_base": 0.9590403355944147,
+    "macro_f1": 0.46181593447778957,
+    "macro_f1_ci": [
+      0.4238172028282269,
+      0.4987063324089075
+    ],
+    "macro_f1_null95": 0.49629035860376747,
+    "macro_f1_perm_p": 0.6461769115442278,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.8226837060702875,
+    "log_loss": 0.6889195694885852,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.24790129506376266,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.05430667689204887,
+    "p_mean": 0.5303578598491652,
+    "p_std": 0.03491683665279125,
+    "p_within_0_05": 0.6661341853035144,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 0,
+      "[0.40,0.45)": 18,
+      "[0.45,0.50)": 93,
+      "[0.50,0.55)": 324,
+      "[0.55,0.60)": 184,
+      "[0.60,0.70)": 7,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.4-0.5",
+        "n": 111,
+        "predicted": 0.47345954682866476,
+        "observed": 0.5945945945945946
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 508,
+        "predicted": 0.5416937193263633,
+        "observed": 0.5787401574803149
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 7,
+        "predicted": 0.6099430214004326,
+        "observed": 0.8571428571428571
+      }
+    ],
+    "overview_val_loss": 0.6929628831714757,
+    "curves": {
+      "min_val_epoch": 1,
+      "min_val_loss": 0.6929628831714757,
+      "first_val": 0.6929628831714757,
+      "last_val": 0.6959580556163822,
+      "first_train": 0.6749251273249781,
+      "last_train": 0.6423320218459874,
+      "gap_last": 0.053626033770394876,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5702875399361023,
+    "model_oracle_macro_f1": 0.46566522924222664,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 1128,
+      "classBalance": false,
+      "temperature": 2.004046307218691,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -0.31536329428449517,
+        "inner_log_return": 0.6001713615202011,
+        "inner_always_long_log_return": 0.6001713615202011
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "SPY"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": null,
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "2af84096-df89-4272-9aa3-83a262909574",
+    "source": "synthetic",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 0,
+    "epochs": 8,
+    "n_train": 457,
+    "n_val": 130,
+    "val_period": "2017-04-03..2017-12-29",
+    "train_up": 0.48577680525164113,
+    "val_up": 0.5384615384615384,
+    "accuracy": 0.5538461538461539,
+    "accuracy_ci": [
+      0.49230769230769234,
+      0.6153846153846154
+    ],
+    "always_up_accuracy": 0.5384615384615384,
+    "acc_minus_always_up_ci": [
+      -0.06173076923076922,
+      0.1
+    ],
+    "p_binom_vs_half": 0.25412455431011827,
+    "p_binom_better_than_base": 0.39680245296590966,
+    "macro_f1": 0.5352564102564102,
+    "macro_f1_ci": [
+      0.4647965149769585,
+      0.5965762630635131
+    ],
+    "macro_f1_null95": 0.5673076923076923,
+    "macro_f1_perm_p": 0.19390304847576212,
+    "always_up_macro_f1": 0.35,
+    "predicted_long_share": 0.6615384615384615,
+    "log_loss": 0.709819017844059,
+    "log_loss_constant": 0.6901856760188042,
+    "brier": 0.25753051246390984,
+    "brier_constant": 0.2485207100591716,
+    "ece10": 0.08388367960061502,
+    "p_mean": 0.5414313000262772,
+    "p_std": 0.12678909375106873,
+    "p_within_0_05": 0.2923076923076923,
+    "histogram": {
+      "[0.00,0.30)": 5,
+      "[0.30,0.40)": 14,
+      "[0.40,0.45)": 10,
+      "[0.45,0.50)": 15,
+      "[0.50,0.55)": 23,
+      "[0.55,0.60)": 20,
+      "[0.60,0.70)": 29,
+      "[0.70,1.00)": 14
+    },
+    "reliability": [
+      {
+        "bin": "0.1-0.2",
+        "n": 3,
+        "predicted": 0.18351838314046276,
+        "observed": 0.3333333333333333
+      },
+      {
+        "bin": "0.2-0.3",
+        "n": 2,
+        "predicted": 0.2620254581610868,
+        "observed": 0.5
+      },
+      {
+        "bin": "0.3-0.4",
+        "n": 14,
+        "predicted": 0.3735627361106421,
+        "observed": 0.5714285714285714
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 25,
+        "predicted": 0.4570023430282053,
+        "observed": 0.44
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 43,
+        "predicted": 0.5496174894818702,
+        "observed": 0.5813953488372093
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 29,
+        "predicted": 0.6410160556430877,
+        "observed": 0.5517241379310345
+      },
+      {
+        "bin": "0.7-0.8",
+        "n": 13,
+        "predicted": 0.7408422681841004,
+        "observed": 0.5384615384615384
+      },
+      {
+        "bin": "0.8-0.9",
+        "n": 1,
+        "predicted": 0.8025589086550624,
+        "observed": 1.0
+      }
+    ],
+    "overview_val_loss": 0.7520583195773172,
+    "curves": {
+      "min_val_epoch": 1,
+      "min_val_loss": 0.7520583195773172,
+      "first_val": 0.7520583195773172,
+      "last_val": 0.7959300955580515,
+      "first_train": 0.6528229446982645,
+      "last_train": 0.5551690564102838,
+      "gap_last": 0.2407610391477677,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.08347874386623899,
+        "dd": 0.04881367573980571
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.05558156865072705,
+        "dd": 0.05126838373622517
+      },
+      "buy_and_hold": {
+        "gain": 0.060346703083543174,
+        "dd": 0.060552552225453145
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.08395802490358717,
+        "dd": 0.04908331264806932,
+        "exposure": 0.6615384615384615,
+        "switches": 45,
+        "sharpe": 1.4713921333541404
+      },
+      "always_long": {
+        "gain": 0.060672246958056064,
+        "dd": 0.06084598234485211,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.8161166979555652
+      },
+      "oracle": {
+        "gain": 0.5363690311521532,
+        "dd": 0.005123134091427229,
+        "exposure": 0.45384615384615384,
+        "switches": 39,
+        "sharpe": 9.45021284045624
+      }
+    },
+    "oracle_long_share": 0.45384615384615384,
+    "oracle_agreement_with_label": 0.8384615384615385,
+    "model_oracle_agreement": 0.5,
+    "model_oracle_macro_f1": 0.4932533733133433,
+    "oracle_cum_return": 0.5096409793321965,
+    "accounting": "raw-price",
+    "protocol": null,
+    "pooled": null,
+    "target_long_share": 0.6615384615384615,
+    "commit": "4f51608a377c0afba370acc79d756f3a32a8cd0a"
+  },
+  {
+    "study": "4562eeff-8511-4944-aa27-579c6ae583c3",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 10,
+    "epochs": 8,
+    "n_train": 5961,
+    "n_val": 627,
+    "val_period": "2017-04-03..2019-12-31",
+    "train_up": 0.5361516524073142,
+    "val_up": 0.5725677830940988,
+    "accuracy": 0.5119617224880383,
+    "accuracy_ci": [
+      0.47368421052631576,
+      0.5502392344497608
+    ],
+    "always_up_accuracy": 0.5725677830940988,
+    "acc_minus_always_up_ci": [
+      -0.11642743221690591,
+      -0.004784688995215311
+    ],
+    "p_binom_vs_half": 0.5761242592323783,
+    "p_binom_better_than_base": 0.9990153059792,
+    "macro_f1": 0.5094348306332842,
+    "macro_f1_ci": [
+      0.4700515339093825,
+      0.5476120112153368
+    ],
+    "macro_f1_null95": 0.5286726804123711,
+    "macro_f1_perm_p": 0.3028485757121439,
+    "always_up_macro_f1": 0.3640973630831643,
+    "predicted_long_share": 0.49920255183413076,
+    "log_loss": 0.7206050483108449,
+    "log_loss_constant": 0.6825777236565224,
+    "brier": 0.26244432027276476,
+    "brier_constant": 0.2447339168568078,
+    "ece10": 0.11550146770581526,
+    "p_mean": 0.5113357717992328,
+    "p_std": 0.1260854796592034,
+    "p_within_0_05": 0.32057416267942584,
+    "histogram": {
+      "[0.00,0.30)": 22,
+      "[0.30,0.40)": 90,
+      "[0.40,0.45)": 83,
+      "[0.45,0.50)": 119,
+      "[0.50,0.55)": 82,
+      "[0.55,0.60)": 93,
+      "[0.60,0.70)": 87,
+      "[0.70,1.00)": 51
+    },
+    "reliability": [
+      {
+        "bin": "0.1-0.2",
+        "n": 5,
+        "predicted": 0.16410152760834218,
+        "observed": 0.4
+      },
+      {
+        "bin": "0.2-0.3",
+        "n": 17,
+        "predicted": 0.26337106827569184,
+        "observed": 0.5882352941176471
+      },
+      {
+        "bin": "0.3-0.4",
+        "n": 90,
+        "predicted": 0.35790345832253073,
+        "observed": 0.5666666666666667
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 202,
+        "predicted": 0.4555746685713397,
+        "observed": 0.5594059405940595
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 175,
+        "predicted": 0.5494134550739204,
+        "observed": 0.6
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 87,
+        "predicted": 0.6443224442619154,
+        "observed": 0.5517241379310345
+      },
+      {
+        "bin": "0.7-0.8",
+        "n": 43,
+        "predicted": 0.7471642687973545,
+        "observed": 0.5813953488372093
+      },
+      {
+        "bin": "0.8-0.9",
+        "n": 7,
+        "predicted": 0.8327654822513884,
+        "observed": 0.5714285714285714
+      },
+      {
+        "bin": "0.9-1.0",
+        "n": 1,
+        "predicted": 0.9114895961835144,
+        "observed": 1.0
+      }
+    ],
+    "overview_val_loss": 0.69285260572906,
+    "curves": {
+      "min_val_epoch": 4,
+      "min_val_loss": 0.69285260572906,
+      "first_val": 0.699853786827344,
+      "last_val": 0.6976375821048274,
+      "first_train": 0.6826424672436996,
+      "last_train": 0.6585253973337949,
+      "gap_last": 0.03911218477103251,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.2996812587958295,
+        "dd": 0.16739360584557725,
+        "orders": 230,
+        "rejected": 5
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.30804385235801335,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.39122322925526354,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.30609229056207643,
+        "dd": 0.14975027035434796,
+        "exposure": 0.49920255183413076,
+        "switches": 225,
+        "sharpe": 0.9315302779396958
+      },
+      "always_long": {
+        "gain": 0.3903791623983337,
+        "dd": 0.1934890213523237,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9657682371512948
+      },
+      "oracle": {
+        "gain": 5.030295981813994,
+        "dd": 0.006678800343048956,
+        "exposure": 0.620414673046252,
+        "switches": 153,
+        "sharpe": 8.86665039982051
+      }
+    },
+    "oracle_long_share": 0.620414673046252,
+    "oracle_agreement_with_label": 0.8245614035087719,
+    "model_oracle_agreement": 0.4960127591706539,
+    "model_oracle_macro_f1": 0.4886968908708039,
+    "oracle_cum_return": 4.629080427335522,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": null,
+    "pooled": null,
+    "target_long_share": 0.49920255183413076,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "82221745-f847-46d6-b211-bd4dec3c93a5",
+    "source": "synthetic",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 0,
+    "epochs": 8,
+    "n_train": 4532,
+    "n_val": 651,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.49911738746690204,
+    "val_up": 0.4976958525345622,
+    "accuracy": 0.5299539170506913,
+    "accuracy_ci": [
+      0.4915514592933948,
+      0.5683563748079877
+    ],
+    "always_up_accuracy": 0.4976958525345622,
+    "acc_minus_always_up_ci": [
+      -0.02457757296466974,
+      0.0890937019969278
+    ],
+    "p_binom_vs_half": 0.13633743959294564,
+    "p_binom_better_than_base": 0.08503474186456726,
+    "macro_f1": 0.5285913066525312,
+    "macro_f1_ci": [
+      0.4880852810246751,
+      0.5665314304077251
+    ],
+    "macro_f1_null95": 0.5316724092234296,
+    "macro_f1_perm_p": 0.06996501749125437,
+    "always_up_macro_f1": 0.3323076923076923,
+    "predicted_long_share": 0.4485407066052227,
+    "log_loss": 0.6923119015459778,
+    "log_loss_constant": 0.6931365623312781,
+    "brier": 0.24956946301462038,
+    "brier_constant": 0.24999469090445745,
+    "ece10": 0.003968072370246033,
+    "p_mean": 0.4945281624080288,
+    "p_std": 0.04198281959993372,
+    "p_within_0_05": 0.7542242703533026,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 6,
+      "[0.40,0.45)": 88,
+      "[0.45,0.50)": 265,
+      "[0.50,0.55)": 226,
+      "[0.55,0.60)": 64,
+      "[0.60,0.70)": 2,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 6,
+        "predicted": 0.37426473611845107,
+        "observed": 0.6666666666666666
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 353,
+        "predicted": 0.465812240483251,
+        "observed": 0.46742209631728043
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 290,
+        "predicted": 0.5312150936973014,
+        "observed": 0.5310344827586206
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 2,
+        "predicted": 0.6040736240555356,
+        "observed": 0.5
+      }
+    ],
+    "overview_val_loss": 0.6962320688396992,
+    "curves": {
+      "min_val_epoch": 1,
+      "min_val_loss": 0.6962320688396992,
+      "first_val": 0.6962320688396992,
+      "last_val": 0.6994280237427024,
+      "first_train": 0.6707672606786087,
+      "last_train": 0.6333289510056437,
+      "gap_last": 0.06609907273705873,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": -0.0073367375643438315,
+        "dd": 0.15926903755951202,
+        "orders": 95,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": -0.23198909593198014,
+        "dd": 0.27575153484199344,
+        "orders": 17,
+        "rejected": 0
+      },
+      "buy_and_hold": {
+        "gain": -0.05246885948766267,
+        "dd": 0.164845948421891,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": -0.007467652719389761,
+        "dd": 0.16010436143735807,
+        "exposure": 0.5745007680491552,
+        "switches": 95,
+        "sharpe": -0.028786498891218436
+      },
+      "always_long": {
+        "gain": -0.0527563920665135,
+        "dd": 0.16572371147491638,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": -0.15921431016844637
+      },
+      "oracle": {
+        "gain": 5.939778890745427,
+        "dd": 0.0045305321589715515,
+        "exposure": 0.4685099846390169,
+        "switches": 206,
+        "sharpe": 9.460494270303231
+      }
+    },
+    "oracle_long_share": 0.4685099846390169,
+    "oracle_agreement_with_label": 0.8602150537634409,
+    "model_oracle_agreement": 0.5376344086021505,
+    "model_oracle_macro_f1": 0.5344310203499769,
+    "oracle_cum_return": 5.325378747750382,
+    "accounting": "raw-price",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-08-23",
+      "innerValidationCount": 1071,
+      "classBalance": false,
+      "temperature": 2.405487855393014,
+      "decisionRule": {
+        "flat_below": 0.47676392806254886,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": 4.292642209209277,
+        "inner_log_return": 0.19495373670465022,
+        "inner_always_long_log_return": -0.5083480123403302
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "synthetic"
+      ],
+      "replayAsset": "synthetic"
+    },
+    "pooled": null,
+    "target_long_share": 0.5745007680491552,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "82221745-f847-46d6-b211-bd4dec3c93a5",
+    "source": "synthetic",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 1,
+    "epochs": 8,
+    "n_train": 4532,
+    "n_val": 651,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.49911738746690204,
+    "val_up": 0.4976958525345622,
+    "accuracy": 0.5253456221198156,
+    "accuracy_ci": [
+      0.48847926267281105,
+      0.5622119815668203
+    ],
+    "always_up_accuracy": 0.4976958525345622,
+    "acc_minus_always_up_ci": [
+      -0.02615207373271889,
+      0.08448540706605223
+    ],
+    "p_binom_vs_half": 0.20974364968291143,
+    "p_binom_better_than_base": 0.12783782199560914,
+    "macro_f1": 0.5249824665802393,
+    "macro_f1_ci": [
+      0.48797804410243234,
+      0.5603075682446333
+    ],
+    "macro_f1_null95": 0.5311315608639902,
+    "macro_f1_perm_p": 0.11044477761119441,
+    "always_up_macro_f1": 0.3323076923076923,
+    "predicted_long_share": 0.47465437788018433,
+    "log_loss": 0.6907361578504233,
+    "log_loss_constant": 0.6931365623312781,
+    "brier": 0.24879433139212206,
+    "brier_constant": 0.24999469090445745,
+    "ece10": 0.004065601956636012,
+    "p_mean": 0.49920126462777464,
+    "p_std": 0.035044143334200896,
+    "p_within_0_05": 0.847926267281106,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 1,
+      "[0.40,0.45)": 52,
+      "[0.45,0.50)": 289,
+      "[0.50,0.55)": 263,
+      "[0.55,0.60)": 46,
+      "[0.60,0.70)": 0,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 1,
+        "predicted": 0.3980429932175458,
+        "observed": 0.0
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 341,
+        "predicted": 0.4726294961860869,
+        "observed": 0.4750733137829912
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 309,
+        "predicted": 0.5288521750162075,
+        "observed": 0.5242718446601942
+      }
+    ],
+    "overview_val_loss": 0.6984484392767091,
+    "curves": {
+      "min_val_epoch": 3,
+      "min_val_loss": 0.6984484392767091,
+      "first_val": 0.7061134733874141,
+      "last_val": 0.7078108483468809,
+      "first_train": 0.6770504406086277,
+      "last_train": 0.6342649706863565,
+      "gap_last": 0.07354587766052445,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.015960442774674233,
+        "dd": 0.164898838990664,
+        "orders": 37,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": -0.23198909593198014,
+        "dd": 0.27575153484199344,
+        "orders": 17,
+        "rejected": 0
+      },
+      "buy_and_hold": {
+        "gain": -0.05246885948766267,
+        "dd": 0.164845948421891,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.015889393281013575,
+        "dd": 0.16579609352220215,
+        "exposure": 0.8602150537634409,
+        "switches": 37,
+        "sharpe": 0.05000599232215199
+      },
+      "always_long": {
+        "gain": -0.0527563920665135,
+        "dd": 0.16572371147491638,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": -0.15921431016844637
+      },
+      "oracle": {
+        "gain": 5.939778890745427,
+        "dd": 0.0045305321589715515,
+        "exposure": 0.4685099846390169,
+        "switches": 206,
+        "sharpe": 9.460494270303231
+      }
+    },
+    "oracle_long_share": 0.4685099846390169,
+    "oracle_agreement_with_label": 0.8602150537634409,
+    "model_oracle_agreement": 0.5391705069124424,
+    "model_oracle_macro_f1": 0.5376770699189455,
+    "oracle_cum_return": 5.325378747750382,
+    "accounting": "raw-price",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-08-23",
+      "innerValidationCount": 1071,
+      "classBalance": false,
+      "temperature": 2.7838094291351343,
+      "decisionRule": {
+        "flat_below": 0.4419615352671955,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": 4.061288480023353,
+        "inner_log_return": -0.1253320161981002,
+        "inner_always_long_log_return": -0.5083480123403302
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "synthetic"
+      ],
+      "replayAsset": "synthetic"
+    },
+    "pooled": null,
+    "target_long_share": 0.8602150537634409,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "82221745-f847-46d6-b211-bd4dec3c93a5",
+    "source": "synthetic",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 2,
+    "epochs": 8,
+    "n_train": 4532,
+    "n_val": 651,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.49911738746690204,
+    "val_up": 0.4976958525345622,
+    "accuracy": 0.5299539170506913,
+    "accuracy_ci": [
+      0.4915514592933948,
+      0.5683563748079877
+    ],
+    "always_up_accuracy": 0.4976958525345622,
+    "acc_minus_always_up_ci": [
+      -0.024615975422427033,
+      0.09216589861751152
+    ],
+    "p_binom_vs_half": 0.13633743959294564,
+    "p_binom_better_than_base": 0.08503474186456726,
+    "macro_f1": 0.5274910339854646,
+    "macro_f1_ci": [
+      0.4877830317623375,
+      0.5645624604440395
+    ],
+    "macro_f1_null95": 0.5274910339854646,
+    "macro_f1_perm_p": 0.062468765617191405,
+    "always_up_macro_f1": 0.3323076923076923,
+    "predicted_long_share": 0.43010752688172044,
+    "log_loss": 0.692145704784969,
+    "log_loss_constant": 0.6931365623312781,
+    "brier": 0.24948476519546317,
+    "brier_constant": 0.24999469090445745,
+    "ece10": 0.010863269723320098,
+    "p_mean": 0.49208316310630773,
+    "p_std": 0.050305248609918536,
+    "p_within_0_05": 0.65284178187404,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 23,
+      "[0.40,0.45)": 116,
+      "[0.45,0.50)": 232,
+      "[0.50,0.55)": 193,
+      "[0.55,0.60)": 80,
+      "[0.60,0.70)": 7,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 23,
+        "predicted": 0.3802152486903964,
+        "observed": 0.43478260869565216
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 348,
+        "predicted": 0.46233369131115915,
+        "observed": 0.47413793103448276
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 273,
+        "predicted": 0.5365627493913063,
+        "observed": 0.5347985347985348
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 7,
+        "predicted": 0.6039190431738932,
+        "observed": 0.42857142857142855
+      }
+    ],
+    "overview_val_loss": 0.6938269350803044,
+    "curves": {
+      "min_val_epoch": 5,
+      "min_val_loss": 0.6938269350803044,
+      "first_val": 0.7009869481271211,
+      "last_val": 0.698748012976048,
+      "first_train": 0.6740939482700121,
+      "last_train": 0.6357756560509831,
+      "gap_last": 0.06297235692506498,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.002604935412901188,
+        "dd": 0.17642246071122553,
+        "orders": 64,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": -0.23198909593198014,
+        "dd": 0.27575153484199344,
+        "orders": 17,
+        "rejected": 0
+      },
+      "buy_and_hold": {
+        "gain": -0.05246885948766267,
+        "dd": 0.164845948421891,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.0025003707911765982,
+        "dd": 0.17727456759827911,
+        "exposure": 0.7403993855606759,
+        "switches": 64,
+        "sharpe": 0.008403660188954826
+      },
+      "always_long": {
+        "gain": -0.0527563920665135,
+        "dd": 0.16572371147491638,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": -0.15921431016844637
+      },
+      "oracle": {
+        "gain": 5.939778890745427,
+        "dd": 0.0045305321589715515,
+        "exposure": 0.4685099846390169,
+        "switches": 206,
+        "sharpe": 9.460494270303231
+      }
+    },
+    "oracle_long_share": 0.4685099846390169,
+    "oracle_agreement_with_label": 0.8602150537634409,
+    "model_oracle_agreement": 0.565284178187404,
+    "model_oracle_macro_f1": 0.5607695883846512,
+    "oracle_cum_return": 5.325378747750382,
+    "accounting": "raw-price",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-08-23",
+      "innerValidationCount": 1071,
+      "classBalance": false,
+      "temperature": 2.0785804379723567,
+      "decisionRule": {
+        "flat_below": 0.43841057045271625,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": 3.524178752861666,
+        "inner_log_return": -0.09213932220947493,
+        "inner_always_long_log_return": -0.5083480123403302
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "synthetic"
+      ],
+      "replayAsset": "synthetic"
+    },
+    "pooled": null,
+    "target_long_share": 0.7403993855606759,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "82221745-f847-46d6-b211-bd4dec3c93a5",
+    "source": "synthetic",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 3,
+    "epochs": 8,
+    "n_train": 4532,
+    "n_val": 651,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.49911738746690204,
+    "val_up": 0.4976958525345622,
+    "accuracy": 0.5145929339477726,
+    "accuracy_ci": [
+      0.47619047619047616,
+      0.5514592933947773
+    ],
+    "always_up_accuracy": 0.4976958525345622,
+    "acc_minus_always_up_ci": [
+      -0.039938556067588324,
+      0.07680491551459294
+    ],
+    "p_binom_vs_half": 0.48054264347768283,
+    "p_binom_better_than_base": 0.27832866093496894,
+    "macro_f1": 0.514179104477612,
+    "macro_f1_ci": [
+      0.4747483882574837,
+      0.5496527533735022
+    ],
+    "macro_f1_null95": 0.5295531834498394,
+    "macro_f1_perm_p": 0.239880059970015,
+    "always_up_macro_f1": 0.3323076923076923,
+    "predicted_long_share": 0.4731182795698925,
+    "log_loss": 0.6928221291033118,
+    "log_loss_constant": 0.6931365623312781,
+    "brier": 0.24982842689277412,
+    "brier_constant": 0.24999469090445745,
+    "ece10": 0.017834227437314446,
+    "p_mean": 0.4984089187202053,
+    "p_std": 0.04034905224518418,
+    "p_within_0_05": 0.7680491551459293,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 2,
+      "[0.40,0.45)": 78,
+      "[0.45,0.50)": 263,
+      "[0.50,0.55)": 237,
+      "[0.55,0.60)": 67,
+      "[0.60,0.70)": 4,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 2,
+        "predicted": 0.39887647053319286,
+        "observed": 0.5
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 341,
+        "predicted": 0.4681211409721835,
+        "observed": 0.4838709677419355
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 304,
+        "predicted": 0.5315917847132948,
+        "observed": 0.5131578947368421
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 4,
+        "predicted": 0.6083103803577602,
+        "observed": 0.5
+      }
+    ],
+    "overview_val_loss": 0.6976779300323378,
+    "curves": {
+      "min_val_epoch": 4,
+      "min_val_loss": 0.6976779300323378,
+      "first_val": 0.7041090206944025,
+      "last_val": 0.7005698812738393,
+      "first_train": 0.6740806534318263,
+      "last_train": 0.6367729394260717,
+      "gap_last": 0.06379694184776763,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.04942319529524264,
+        "dd": 0.1562994100575617,
+        "orders": 43,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": -0.23198909593198014,
+        "dd": 0.27575153484199344,
+        "orders": 17,
+        "rejected": 0
+      },
+      "buy_and_hold": {
+        "gain": -0.05246885948766267,
+        "dd": 0.164845948421891,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.049670073404660675,
+        "dd": 0.1570792496976573,
+        "exposure": 0.8325652841781874,
+        "switches": 43,
+        "sharpe": 0.15728226707343174
+      },
+      "always_long": {
+        "gain": -0.0527563920665135,
+        "dd": 0.16572371147491638,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": -0.15921431016844637
+      },
+      "oracle": {
+        "gain": 5.939778890745427,
+        "dd": 0.0045305321589715515,
+        "exposure": 0.4685099846390169,
+        "switches": 206,
+        "sharpe": 9.460494270303231
+      }
+    },
+    "oracle_long_share": 0.4685099846390169,
+    "oracle_agreement_with_label": 0.8602150537634409,
+    "model_oracle_agreement": 0.5529953917050692,
+    "model_oracle_macro_f1": 0.5514671237839079,
+    "oracle_cum_return": 5.325378747750382,
+    "accounting": "raw-price",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-08-23",
+      "innerValidationCount": 1071,
+      "classBalance": false,
+      "temperature": 2.5877441476145058,
+      "decisionRule": {
+        "flat_below": 0.43738672437665527,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": 3.2347946060029673,
+        "inner_log_return": -0.20059682621573122,
+        "inner_always_long_log_return": -0.5083480123403302
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "synthetic"
+      ],
+      "replayAsset": "synthetic"
+    },
+    "pooled": null,
+    "target_long_share": 0.8325652841781874,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "82221745-f847-46d6-b211-bd4dec3c93a5",
+    "source": "synthetic",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 4,
+    "epochs": 8,
+    "n_train": 4532,
+    "n_val": 651,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.49911738746690204,
+    "val_up": 0.4976958525345622,
+    "accuracy": 0.5299539170506913,
+    "accuracy_ci": [
+      0.4930875576036866,
+      0.5668202764976958
+    ],
+    "always_up_accuracy": 0.4976958525345622,
+    "acc_minus_always_up_ci": [
+      -0.026113671274961597,
+      0.09216589861751152
+    ],
+    "p_binom_vs_half": 0.13633743959294564,
+    "p_binom_better_than_base": 0.08503474186456726,
+    "macro_f1": 0.5293664593925419,
+    "macro_f1_ci": [
+      0.49041247939036714,
+      0.5653806642649681
+    ],
+    "macro_f1_null95": 0.5324424956056626,
+    "macro_f1_perm_p": 0.06346826586706647,
+    "always_up_macro_f1": 0.3323076923076923,
+    "predicted_long_share": 0.46697388632872505,
+    "log_loss": 0.6908766528980022,
+    "log_loss_constant": 0.6931365623312781,
+    "brier": 0.24887258043822175,
+    "brier_constant": 0.24999469090445745,
+    "ece10": 0.00350522554917373,
+    "p_mean": 0.49863154742733123,
+    "p_std": 0.03924971726099076,
+    "p_within_0_05": 0.7880184331797235,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 1,
+      "[0.40,0.45)": 69,
+      "[0.45,0.50)": 277,
+      "[0.50,0.55)": 236,
+      "[0.55,0.60)": 65,
+      "[0.60,0.70)": 3,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 1,
+        "predicted": 0.3807373814155309,
+        "observed": 0.0
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 346,
+        "predicted": 0.46918219259363314,
+        "observed": 0.47109826589595377
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 301,
+        "predicted": 0.5317766851243749,
+        "observed": 0.5282392026578073
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 3,
+        "predicted": 0.608859711314406,
+        "observed": 0.6666666666666666
+      }
+    ],
+    "overview_val_loss": 0.6965886818841246,
+    "curves": {
+      "min_val_epoch": 2,
+      "min_val_loss": 0.6965886818841246,
+      "first_val": 0.6995575993678173,
+      "last_val": 0.7091858561484375,
+      "first_train": 0.6769125655079661,
+      "last_train": 0.6395783951294837,
+      "gap_last": 0.06960746101895388,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.08311896669583851,
+        "dd": 0.10690348856269774,
+        "orders": 90,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": -0.23198909593198014,
+        "dd": 0.27575153484199344,
+        "orders": 17,
+        "rejected": 0
+      },
+      "buy_and_hold": {
+        "gain": -0.05246885948766267,
+        "dd": 0.164845948421891,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.08345462493098088,
+        "dd": 0.10748179718294733,
+        "exposure": 0.5453149001536098,
+        "switches": 90,
+        "sharpe": 0.32472900722672793
+      },
+      "always_long": {
+        "gain": -0.0527563920665135,
+        "dd": 0.16572371147491638,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": -0.15921431016844637
+      },
+      "oracle": {
+        "gain": 5.939778890745427,
+        "dd": 0.0045305321589715515,
+        "exposure": 0.4685099846390169,
+        "switches": 206,
+        "sharpe": 9.460494270303231
+      }
+    },
+    "oracle_long_share": 0.4685099846390169,
+    "oracle_agreement_with_label": 0.8602150537634409,
+    "model_oracle_agreement": 0.5529953917050692,
+    "model_oracle_macro_f1": 0.5511270338856546,
+    "oracle_cum_return": 5.325378747750382,
+    "accounting": "raw-price",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-08-23",
+      "innerValidationCount": 1071,
+      "classBalance": false,
+      "temperature": 2.4949523281920727,
+      "decisionRule": {
+        "flat_below": 0.4895965696334252,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": 3.159672599099385,
+        "inner_log_return": 0.046255581284862374,
+        "inner_always_long_log_return": -0.5083480123403302
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "synthetic"
+      ],
+      "replayAsset": "synthetic"
+    },
+    "pooled": null,
+    "target_long_share": 0.5453149001536098,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "b18d1473-fe69-4419-8012-f765d358dc85",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 0,
+    "epochs": 8,
+    "n_train": 44427,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5312985346748599,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.5750798722044729,
+    "accuracy_ci": [
+      0.5351437699680511,
+      0.6166134185303515
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.03194888178913738,
+      0.01437699680511182
+    ],
+    "p_binom_vs_half": 0.0001965420151967929,
+    "p_binom_better_than_base": 0.7015280252626829,
+    "macro_f1": 0.43464207624298884,
+    "macro_f1_ci": [
+      0.3996497807693697,
+      0.47211249579669756
+    ],
+    "macro_f1_null95": 0.45164532207026736,
+    "macro_f1_perm_p": 0.3743128435782109,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.9137380191693291,
+    "log_loss": 0.6871181220770465,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.24698353017256433,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.0571853999804094,
+    "p_mean": 0.5274791367608046,
+    "p_std": 0.020848454703074906,
+    "p_within_0_05": 0.8801916932907349,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 0,
+      "[0.40,0.45)": 1,
+      "[0.45,0.50)": 53,
+      "[0.50,0.55)": 498,
+      "[0.55,0.60)": 74,
+      "[0.60,0.70)": 0,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.4-0.5",
+        "n": 54,
+        "predicted": 0.48590822658647154,
+        "observed": 0.5555555555555556
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 572,
+        "predicted": 0.5314036632457941,
+        "observed": 0.5874125874125874
+      }
+    ],
+    "overview_val_loss": 0.6918627591747077,
+    "curves": {
+      "min_val_epoch": 2,
+      "min_val_loss": 0.6918627591747077,
+      "first_val": 0.6919856029992743,
+      "last_val": 0.7059576725935748,
+      "first_train": 0.6834264203582544,
+      "last_train": 0.6210317655788793,
+      "gap_last": 0.08492590701469549,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5942492012779552,
+    "model_oracle_macro_f1": 0.4327768264840183,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 16920,
+      "classBalance": false,
+      "temperature": 1.6097307976971036,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -1.9539955484231086,
+        "inner_log_return": 5.378464960658681,
+        "inner_always_long_log_return": 5.378464960658681
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": {
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "count": 9390,
+      "dates": 626,
+      "validationUp": 0.5487752928647497,
+      "accuracy": 0.5413205537806177,
+      "alwaysUpAccuracy": 0.5487752928647497,
+      "accuracyMinusAlwaysUpInterval": [
+        -0.020766773162939296,
+        0.003945686900958462
+      ],
+      "macroF1": 0.42708255493335817,
+      "auc": 0.5078076518207701,
+      "aucInterval": [
+        0.4806816600345408,
+        0.5315521255074998
+      ],
+      "logLoss": 0.6901355310874541,
+      "constantLogLoss": 0.6883815469264758,
+      "perAsset": {
+        "DIA": {
+          "count": 626,
+          "accuracy": 0.5638977635782748,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.48772200450262654
+        },
+        "EEM": {
+          "count": 626,
+          "accuracy": 0.5447284345047924,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.539176326840738
+        },
+        "EFA": {
+          "count": 626,
+          "accuracy": 0.547923322683706,
+          "alwaysUpAccuracy": 0.536741214057508,
+          "auc": 0.5427237274220033
+        },
+        "GLD": {
+          "count": 626,
+          "accuracy": 0.5095846645367412,
+          "alwaysUpAccuracy": 0.5143769968051118,
+          "auc": 0.5094802222948676
+        },
+        "IEF": {
+          "count": 626,
+          "accuracy": 0.5351437699680511,
+          "alwaysUpAccuracy": 0.5287539936102237,
+          "auc": 0.5129499718367556
+        },
+        "IWM": {
+          "count": 626,
+          "accuracy": 0.5447284345047924,
+          "alwaysUpAccuracy": 0.5543130990415336,
+          "auc": 0.49110140167126315
+        },
+        "LQD": {
+          "count": 626,
+          "accuracy": 0.5591054313099042,
+          "alwaysUpAccuracy": 0.549520766773163,
+          "auc": 0.5337910275441201
+        },
+        "QQQ": {
+          "count": 626,
+          "accuracy": 0.5543130990415336,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.5155715834236638
+        },
+        "SPY": {
+          "count": 626,
+          "accuracy": 0.5750798722044729,
+          "alwaysUpAccuracy": 0.5846645367412141,
+          "auc": 0.48628625472887765
+        },
+        "TLT": {
+          "count": 626,
+          "accuracy": 0.5223642172523961,
+          "alwaysUpAccuracy": 0.5175718849840255,
+          "auc": 0.5063670182323604
+        },
+        "XLE": {
+          "count": 626,
+          "accuracy": 0.476038338658147,
+          "alwaysUpAccuracy": 0.5319488817891374,
+          "auc": 0.448226383379967
+        },
+        "XLF": {
+          "count": 626,
+          "accuracy": 0.5271565495207667,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.5069974228127279
+        },
+        "XLK": {
+          "count": 626,
+          "accuracy": 0.5383386581469649,
+          "alwaysUpAccuracy": 0.5591054313099042,
+          "auc": 0.5078571428571429
+        },
+        "XLU": {
+          "count": 626,
+          "accuracy": 0.5415335463258786,
+          "alwaysUpAccuracy": 0.5527156549520766,
+          "auc": 0.5181151940545005
+        },
+        "XLV": {
+          "count": 626,
+          "accuracy": 0.5798722044728435,
+          "alwaysUpAccuracy": 0.5814696485623003,
+          "auc": 0.5010275983558427
+        }
+      }
+    },
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "b18d1473-fe69-4419-8012-f765d358dc85",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 1,
+    "epochs": 8,
+    "n_train": 44427,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5312985346748599,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.5814696485623003,
+    "accuracy_ci": [
+      0.5415335463258786,
+      0.6214057507987221
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.020766773162939296,
+      0.01437699680511182
+    ],
+    "p_binom_vs_half": 5.2307590487264214e-05,
+    "p_binom_better_than_base": 0.5811896936456348,
+    "macro_f1": 0.44076650300054554,
+    "macro_f1_ci": [
+      0.40651495470571364,
+      0.4763339770232772
+    ],
+    "macro_f1_null95": 0.44930441898527007,
+    "macro_f1_perm_p": 0.20039980009995004,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.9169329073482428,
+    "log_loss": 0.686847076836236,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.24684452579247115,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.05555369330020706,
+    "p_mean": 0.5293240596986467,
+    "p_std": 0.02381032350568297,
+    "p_within_0_05": 0.8338658146964856,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 0,
+      "[0.40,0.45)": 2,
+      "[0.45,0.50)": 50,
+      "[0.50,0.55)": 472,
+      "[0.55,0.60)": 97,
+      "[0.60,0.70)": 5,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.4-0.5",
+        "n": 52,
+        "predicted": 0.4858557075498264,
+        "observed": 0.5192307692307693
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 569,
+        "predicted": 0.5325582212480152,
+        "observed": 0.5905096660808435
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 5,
+        "predicted": 0.613347337728255,
+        "observed": 0.6
+      }
+    ],
+    "overview_val_loss": 0.6904145806620404,
+    "curves": {
+      "min_val_epoch": 1,
+      "min_val_loss": 0.6904145806620404,
+      "first_val": 0.6904145806620404,
+      "last_val": 0.7040548513418996,
+      "first_train": 0.684318526750986,
+      "last_train": 0.6224039528616625,
+      "gap_last": 0.0816508984802371,
+      "verdict": "train keeps falling while val rises after best epoch -> overfitting"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5846645367412141,
+    "model_oracle_macro_f1": 0.41658900279589933,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 16920,
+      "classBalance": false,
+      "temperature": 1.2930006815315507,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -0.08142867728447857,
+        "inner_log_return": 5.378464960658681,
+        "inner_always_long_log_return": 5.378464960658681
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": {
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "count": 9390,
+      "dates": 626,
+      "validationUp": 0.5487752928647497,
+      "accuracy": 0.5440894568690096,
+      "alwaysUpAccuracy": 0.5487752928647497,
+      "accuracyMinusAlwaysUpInterval": [
+        -0.015867944621938232,
+        0.005753461128860487
+      ],
+      "macroF1": 0.440838771262695,
+      "auc": 0.5090617933802926,
+      "aucInterval": [
+        0.48790663129513545,
+        0.5310926272364132
+      ],
+      "logLoss": 0.6899600739778413,
+      "constantLogLoss": 0.6883815469264758,
+      "perAsset": {
+        "DIA": {
+          "count": 626,
+          "accuracy": 0.5750798722044729,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.5060139247894605
+        },
+        "EEM": {
+          "count": 626,
+          "accuracy": 0.5527156549520766,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.5301613052272751
+        },
+        "EFA": {
+          "count": 626,
+          "accuracy": 0.536741214057508,
+          "alwaysUpAccuracy": 0.536741214057508,
+          "auc": 0.5229782430213464
+        },
+        "GLD": {
+          "count": 626,
+          "accuracy": 0.5111821086261981,
+          "alwaysUpAccuracy": 0.5143769968051118,
+          "auc": 0.49317587446878064
+        },
+        "IEF": {
+          "count": 626,
+          "accuracy": 0.5271565495207667,
+          "alwaysUpAccuracy": 0.5287539936102237,
+          "auc": 0.4755901479850479
+        },
+        "IWM": {
+          "count": 626,
+          "accuracy": 0.5303514376996805,
+          "alwaysUpAccuracy": 0.5543130990415336,
+          "auc": 0.5036720275169657
+        },
+        "LQD": {
+          "count": 626,
+          "accuracy": 0.549520766773163,
+          "alwaysUpAccuracy": 0.549520766773163,
+          "auc": 0.5243794326241135
+        },
+        "QQQ": {
+          "count": 626,
+          "accuracy": 0.5654952076677316,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.5292774952055366
+        },
+        "SPY": {
+          "count": 626,
+          "accuracy": 0.5814696485623003,
+          "alwaysUpAccuracy": 0.5846645367412141,
+          "auc": 0.4905422446406053
+        },
+        "TLT": {
+          "count": 626,
+          "accuracy": 0.5303514376996805,
+          "alwaysUpAccuracy": 0.5175718849840255,
+          "auc": 0.520245687188292
+        },
+        "XLE": {
+          "count": 626,
+          "accuracy": 0.4984025559105431,
+          "alwaysUpAccuracy": 0.5319488817891374,
+          "auc": 0.46135555350572416
+        },
+        "XLF": {
+          "count": 626,
+          "accuracy": 0.5351437699680511,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.5104987011386856
+        },
+        "XLK": {
+          "count": 626,
+          "accuracy": 0.5527156549520766,
+          "alwaysUpAccuracy": 0.5591054313099042,
+          "auc": 0.5195031055900621
+        },
+        "XLU": {
+          "count": 626,
+          "accuracy": 0.5431309904153354,
+          "alwaysUpAccuracy": 0.5527156549520766,
+          "auc": 0.532824112303881
+        },
+        "XLV": {
+          "count": 626,
+          "accuracy": 0.5718849840255591,
+          "alwaysUpAccuracy": 0.5814696485623003,
+          "auc": 0.5132224645583424
+        }
+      }
+    },
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "b18d1473-fe69-4419-8012-f765d358dc85",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 2,
+    "epochs": 8,
+    "n_train": 44427,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5312985346748599,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.5782747603833865,
+    "accuracy_ci": [
+      0.5335463258785943,
+      0.6214057507987221
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.03035143769968051,
+      0.01597444089456869
+    ],
+    "p_binom_vs_half": 0.00010266561936239799,
+    "p_binom_better_than_base": 0.6431625870947729,
+    "macro_f1": 0.4709046204282348,
+    "macro_f1_ci": [
+      0.4308939103873622,
+      0.5088233281713931
+    ],
+    "macro_f1_null95": 0.47892121708841306,
+    "macro_f1_perm_p": 0.14342828585707146,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.865814696485623,
+    "log_loss": 0.6870061764363792,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.24693273786674647,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.06637579014998116,
+    "p_mean": 0.5182887465912328,
+    "p_std": 0.018297399389111704,
+    "p_within_0_05": 0.9744408945686901,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 0,
+      "[0.40,0.45)": 1,
+      "[0.45,0.50)": 83,
+      "[0.50,0.55)": 527,
+      "[0.55,0.60)": 14,
+      "[0.60,0.70)": 1,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.4-0.5",
+        "n": 84,
+        "predicted": 0.4849578836092478,
+        "observed": 0.5238095238095238
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 541,
+        "predicted": 0.5233128061007271,
+        "observed": 0.5933456561922366
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 1,
+        "predicted": 0.6000650424416275,
+        "observed": 1.0
+      }
+    ],
+    "overview_val_loss": 0.693768035917298,
+    "curves": {
+      "min_val_epoch": 3,
+      "min_val_loss": 0.693768035917298,
+      "first_val": 0.6944799673428205,
+      "last_val": 0.7052326798840541,
+      "first_train": 0.6835789744591515,
+      "last_train": 0.6191288307576324,
+      "gap_last": 0.08610384912642177,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5942492012779552,
+    "model_oracle_macro_f1": 0.46903092232685506,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 16920,
+      "classBalance": false,
+      "temperature": 2.2360679774997894,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -3.185548240266648,
+        "inner_log_return": 5.378464960658681,
+        "inner_always_long_log_return": 5.378464960658681
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": {
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "count": 9390,
+      "dates": 626,
+      "validationUp": 0.5487752928647497,
+      "accuracy": 0.5396166134185304,
+      "alwaysUpAccuracy": 0.5487752928647497,
+      "accuracyMinusAlwaysUpInterval": [
+        -0.02268370607028754,
+        0.0026650692225772075
+      ],
+      "macroF1": 0.4680104568465052,
+      "auc": 0.5135504494724814,
+      "aucInterval": [
+        0.494109019849833,
+        0.5318110994690767
+      ],
+      "logLoss": 0.6906036114129109,
+      "constantLogLoss": 0.6883815469264758,
+      "perAsset": {
+        "DIA": {
+          "count": 626,
+          "accuracy": 0.5670926517571885,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.5072646543817226
+        },
+        "EEM": {
+          "count": 626,
+          "accuracy": 0.5431309904153354,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.5355004979824012
+        },
+        "EFA": {
+          "count": 626,
+          "accuracy": 0.5431309904153354,
+          "alwaysUpAccuracy": 0.536741214057508,
+          "auc": 0.5230090311986864
+        },
+        "GLD": {
+          "count": 626,
+          "accuracy": 0.5143769968051118,
+          "alwaysUpAccuracy": 0.5143769968051118,
+          "auc": 0.5190830336711344
+        },
+        "IEF": {
+          "count": 626,
+          "accuracy": 0.5383386581469649,
+          "alwaysUpAccuracy": 0.5287539936102237,
+          "auc": 0.5286497004454913
+        },
+        "IWM": {
+          "count": 626,
+          "accuracy": 0.5383386581469649,
+          "alwaysUpAccuracy": 0.5543130990415336,
+          "auc": 0.4823112598514662
+        },
+        "LQD": {
+          "count": 626,
+          "accuracy": 0.5447284345047924,
+          "alwaysUpAccuracy": 0.549520766773163,
+          "auc": 0.527729671779647
+        },
+        "QQQ": {
+          "count": 626,
+          "accuracy": 0.5447284345047924,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.5206891520053365
+        },
+        "SPY": {
+          "count": 626,
+          "accuracy": 0.5782747603833865,
+          "alwaysUpAccuracy": 0.5846645367412141,
+          "auc": 0.5206494325346784
+        },
+        "TLT": {
+          "count": 626,
+          "accuracy": 0.5207667731629393,
+          "alwaysUpAccuracy": 0.5175718849840255,
+          "auc": 0.5011855122230399
+        },
+        "XLE": {
+          "count": 626,
+          "accuracy": 0.4936102236421725,
+          "alwaysUpAccuracy": 0.5319488817891374,
+          "auc": 0.46815074460125655
+        },
+        "XLF": {
+          "count": 626,
+          "accuracy": 0.5175718849840255,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.4754756502007331
+        },
+        "XLK": {
+          "count": 626,
+          "accuracy": 0.5463258785942492,
+          "alwaysUpAccuracy": 0.5591054313099042,
+          "auc": 0.521511387163561
+        },
+        "XLU": {
+          "count": 626,
+          "accuracy": 0.5623003194888179,
+          "alwaysUpAccuracy": 0.5527156549520766,
+          "auc": 0.5486581337737407
+        },
+        "XLV": {
+          "count": 626,
+          "accuracy": 0.5415335463258786,
+          "alwaysUpAccuracy": 0.5814696485623003,
+          "auc": 0.4958057209965607
+        }
+      }
+    },
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "b18d1473-fe69-4419-8012-f765d358dc85",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 3,
+    "epochs": 8,
+    "n_train": 44427,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5312985346748599,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.5814696485623003,
+    "accuracy_ci": [
+      0.536741214057508,
+      0.6230031948881789
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.02559904153354632,
+      0.019169329073482427
+    ],
+    "p_binom_vs_half": 5.2307590487264214e-05,
+    "p_binom_better_than_base": 0.5811896936456348,
+    "macro_f1": 0.46909999611565006,
+    "macro_f1_ci": [
+      0.4309211540980186,
+      0.5077489300624375
+    ],
+    "macro_f1_null95": 0.4731526679010267,
+    "macro_f1_perm_p": 0.1089455272363818,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.8753993610223643,
+    "log_loss": 0.6854722340822864,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.24616857466886755,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.05959846008563547,
+    "p_mean": 0.5250660766555786,
+    "p_std": 0.021974053700171494,
+    "p_within_0_05": 0.902555910543131,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 0,
+      "[0.40,0.45)": 3,
+      "[0.45,0.50)": 75,
+      "[0.50,0.55)": 490,
+      "[0.55,0.60)": 58,
+      "[0.60,0.70)": 0,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.4-0.5",
+        "n": 78,
+        "predicted": 0.4835269241837547,
+        "observed": 0.5128205128205128
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 548,
+        "predicted": 0.5309785837592323,
+        "observed": 0.5948905109489051
+      }
+    ],
+    "overview_val_loss": 0.6920484131832543,
+    "curves": {
+      "min_val_epoch": 2,
+      "min_val_loss": 0.6920484131832543,
+      "first_val": 0.6926540894964568,
+      "last_val": 0.7035838569736914,
+      "first_train": 0.6820493234686595,
+      "last_train": 0.6184450674238582,
+      "gap_last": 0.08513878954983323,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5878594249201278,
+    "model_oracle_macro_f1": 0.45395163907822134,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 16920,
+      "classBalance": false,
+      "temperature": 1.6097307976971036,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -0.31943071840961995,
+        "inner_log_return": 5.378464960658681,
+        "inner_always_long_log_return": 5.378464960658681
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": {
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "count": 9390,
+      "dates": 626,
+      "validationUp": 0.5487752928647497,
+      "accuracy": 0.5463258785942492,
+      "alwaysUpAccuracy": 0.5487752928647497,
+      "accuracyMinusAlwaysUpInterval": [
+        -0.015234291799787006,
+        0.009584664536741214
+      ],
+      "macroF1": 0.45128121078684125,
+      "auc": 0.5100730944406335,
+      "aucInterval": [
+        0.48589795528266433,
+        0.5310251603026087
+      ],
+      "logLoss": 0.6896499340083112,
+      "constantLogLoss": 0.6883815469264758,
+      "perAsset": {
+        "DIA": {
+          "count": 626,
+          "accuracy": 0.5638977635782748,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.5014070707912949
+        },
+        "EEM": {
+          "count": 626,
+          "accuracy": 0.560702875399361,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.5446900701282433
+        },
+        "EFA": {
+          "count": 626,
+          "accuracy": 0.5431309904153354,
+          "alwaysUpAccuracy": 0.536741214057508,
+          "auc": 0.5164511494252874
+        },
+        "GLD": {
+          "count": 626,
+          "accuracy": 0.5207667731629393,
+          "alwaysUpAccuracy": 0.5143769968051118,
+          "auc": 0.5229241582216411
+        },
+        "IEF": {
+          "count": 626,
+          "accuracy": 0.5271565495207667,
+          "alwaysUpAccuracy": 0.5287539936102237,
+          "auc": 0.5234676634748323
+        },
+        "IWM": {
+          "count": 626,
+          "accuracy": 0.5638977635782748,
+          "alwaysUpAccuracy": 0.5543130990415336,
+          "auc": 0.5186286965593464
+        },
+        "LQD": {
+          "count": 626,
+          "accuracy": 0.549520766773163,
+          "alwaysUpAccuracy": 0.549520766773163,
+          "auc": 0.5218641761504206
+        },
+        "QQQ": {
+          "count": 626,
+          "accuracy": 0.549520766773163,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.5170724589343784
+        },
+        "SPY": {
+          "count": 626,
+          "accuracy": 0.5814696485623003,
+          "alwaysUpAccuracy": 0.5846645367412141,
+          "auc": 0.5047183690626313
+        },
+        "TLT": {
+          "count": 626,
+          "accuracy": 0.5303514376996805,
+          "alwaysUpAccuracy": 0.5175718849840255,
+          "auc": 0.5194485324176273
+        },
+        "XLE": {
+          "count": 626,
+          "accuracy": 0.5191693290734825,
+          "alwaysUpAccuracy": 0.5319488817891374,
+          "auc": 0.4695343807971794
+        },
+        "XLF": {
+          "count": 626,
+          "accuracy": 0.5271565495207667,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.4851170001950859
+        },
+        "XLK": {
+          "count": 626,
+          "accuracy": 0.5399361022364217,
+          "alwaysUpAccuracy": 0.5591054313099042,
+          "auc": 0.5022360248447205
+        },
+        "XLU": {
+          "count": 626,
+          "accuracy": 0.560702875399361,
+          "alwaysUpAccuracy": 0.5527156549520766,
+          "auc": 0.5167630057803468
+        },
+        "XLV": {
+          "count": 626,
+          "accuracy": 0.5575079872204473,
+          "alwaysUpAccuracy": 0.5814696485623003,
+          "auc": 0.4973785756228504
+        }
+      }
+    },
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "b18d1473-fe69-4419-8012-f765d358dc85",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 4,
+    "epochs": 8,
+    "n_train": 44427,
+    "n_val": 626,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.5312985346748599,
+    "val_up": 0.5846645367412141,
+    "accuracy": 0.5686900958466453,
+    "accuracy_ci": [
+      0.5239616613418531,
+      0.6134185303514377
+    ],
+    "always_up_accuracy": 0.5846645367412141,
+    "acc_minus_always_up_ci": [
+      -0.04472843450479233,
+      0.012779552715654952
+    ],
+    "p_binom_vs_half": 0.0006687446060830776,
+    "p_binom_better_than_base": 0.8029565253121856,
+    "macro_f1": 0.45491486068111453,
+    "macro_f1_ci": [
+      0.4124745636942221,
+      0.4987190213096801
+    ],
+    "macro_f1_null95": 0.4751031991744066,
+    "macro_f1_perm_p": 0.3803098450774613,
+    "always_up_macro_f1": 0.3689516129032258,
+    "predicted_long_share": 0.8722044728434505,
+    "log_loss": 0.6859091770025697,
+    "log_loss_constant": 0.6787417064212851,
+    "brier": 0.2463878147850163,
+    "brier_constant": 0.2428319162183956,
+    "ece10": 0.05996622891174798,
+    "p_mean": 0.5246983078294661,
+    "p_std": 0.023263670252372286,
+    "p_within_0_05": 0.8785942492012779,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 0,
+      "[0.40,0.45)": 1,
+      "[0.45,0.50)": 79,
+      "[0.50,0.55)": 471,
+      "[0.55,0.60)": 75,
+      "[0.60,0.70)": 0,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.4-0.5",
+        "n": 80,
+        "predicted": 0.4832047971815525,
+        "observed": 0.5625
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 546,
+        "predicted": 0.5307779430892337,
+        "observed": 0.5879120879120879
+      }
+    ],
+    "overview_val_loss": 0.6922288618719888,
+    "curves": {
+      "min_val_epoch": 2,
+      "min_val_loss": 0.6922288618719888,
+      "first_val": 0.6929221884754032,
+      "last_val": 0.6997298299251504,
+      "first_train": 0.6827724709511982,
+      "last_train": 0.622364594205665,
+      "gap_last": 0.07736523571948539,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.3048869458410597,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.3878772371917214,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "always_long": {
+        "gain": 0.3896713059112713,
+        "dd": 0.190187580335192,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9872169610006716
+      },
+      "oracle": {
+        "gain": 3.357399864832173,
+        "dd": 0.014473381622168236,
+        "exposure": 0.6198083067092651,
+        "switches": 152,
+        "sharpe": 6.855516237958173
+      }
+    },
+    "oracle_long_share": 0.6198083067092651,
+    "oracle_agreement_with_label": 0.8242811501597445,
+    "model_oracle_agreement": 0.5942492012779552,
+    "model_oracle_macro_f1": 0.46465462674908753,
+    "oracle_cum_return": 4.618245995003252,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-04-04",
+      "innerValidationCount": 16920,
+      "classBalance": false,
+      "temperature": 1.7316950661947657,
+      "decisionRule": {
+        "flat_below": 0.0,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": -0.9435225852100737,
+        "inner_log_return": 5.378464960658681,
+        "inner_always_long_log_return": 5.378464960658681
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "replayAsset": "SPY"
+    },
+    "pooled": {
+      "assets": [
+        "DIA",
+        "EEM",
+        "EFA",
+        "GLD",
+        "IEF",
+        "IWM",
+        "LQD",
+        "QQQ",
+        "SPY",
+        "TLT",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLU",
+        "XLV"
+      ],
+      "count": 9390,
+      "dates": 626,
+      "validationUp": 0.5487752928647497,
+      "accuracy": 0.5338658146964856,
+      "alwaysUpAccuracy": 0.5487752928647497,
+      "accuracyMinusAlwaysUpInterval": [
+        -0.028221512247071354,
+        -0.0013844515441959531
+      ],
+      "macroF1": 0.44998442359701063,
+      "auc": 0.507421772679766,
+      "aucInterval": [
+        0.4874097914380565,
+        0.5289645838896959
+      ],
+      "logLoss": 0.6901867429952779,
+      "constantLogLoss": 0.6883815469264758,
+      "perAsset": {
+        "DIA": {
+          "count": 626,
+          "accuracy": 0.5623003194888179,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.5015321437505211
+        },
+        "EEM": {
+          "count": 626,
+          "accuracy": 0.5271565495207667,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.5184972225929995
+        },
+        "EFA": {
+          "count": 626,
+          "accuracy": 0.5207667731629393,
+          "alwaysUpAccuracy": 0.536741214057508,
+          "auc": 0.5177647783251231
+        },
+        "GLD": {
+          "count": 626,
+          "accuracy": 0.5143769968051118,
+          "alwaysUpAccuracy": 0.5143769968051118,
+          "auc": 0.5220966819221968
+        },
+        "IEF": {
+          "count": 626,
+          "accuracy": 0.5303514376996805,
+          "alwaysUpAccuracy": 0.5287539936102237,
+          "auc": 0.5278406472425623
+        },
+        "IWM": {
+          "count": 626,
+          "accuracy": 0.5383386581469649,
+          "alwaysUpAccuracy": 0.5543130990415336,
+          "auc": 0.5063782756447998
+        },
+        "LQD": {
+          "count": 626,
+          "accuracy": 0.5527156549520766,
+          "alwaysUpAccuracy": 0.549520766773163,
+          "auc": 0.5211425861784595
+        },
+        "QQQ": {
+          "count": 626,
+          "accuracy": 0.5351437699680511,
+          "alwaysUpAccuracy": 0.5718849840255591,
+          "auc": 0.5134661886100225
+        },
+        "SPY": {
+          "count": 626,
+          "accuracy": 0.5686900958466453,
+          "alwaysUpAccuracy": 0.5846645367412141,
+          "auc": 0.49908575031525854
+        },
+        "TLT": {
+          "count": 626,
+          "accuracy": 0.5319488817891374,
+          "alwaysUpAccuracy": 0.5175718849840255,
+          "auc": 0.518498078652604
+        },
+        "XLE": {
+          "count": 626,
+          "accuracy": 0.5047923322683706,
+          "alwaysUpAccuracy": 0.5319488817891374,
+          "auc": 0.46435855650872715
+        },
+        "XLF": {
+          "count": 626,
+          "accuracy": 0.5047923322683706,
+          "alwaysUpAccuracy": 0.5383386581469649,
+          "auc": 0.4779809637242923
+        },
+        "XLK": {
+          "count": 626,
+          "accuracy": 0.536741214057508,
+          "alwaysUpAccuracy": 0.5591054313099042,
+          "auc": 0.49813664596273294
+        },
+        "XLU": {
+          "count": 626,
+          "accuracy": 0.5399361022364217,
+          "alwaysUpAccuracy": 0.5527156549520766,
+          "auc": 0.5501651527663088
+        },
+        "XLV": {
+          "count": 626,
+          "accuracy": 0.5399361022364217,
+          "alwaysUpAccuracy": 0.5814696485623003,
+          "auc": 0.4957428068115091
+        }
+      }
+    },
+    "target_long_share": 1.0,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "dc5e5b9a-7f44-4b68-a96d-1cb073511670",
+    "source": "SPY",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 1,
+    "epochs": 8,
+    "n_train": 5961,
+    "n_val": 627,
+    "val_period": "2017-04-03..2019-12-31",
+    "train_up": 0.5361516524073142,
+    "val_up": 0.5725677830940988,
+    "accuracy": 0.5566188197767146,
+    "accuracy_ci": [
+      0.518341307814992,
+      0.5949362041467303
+    ],
+    "always_up_accuracy": 0.5725677830940988,
+    "acc_minus_always_up_ci": [
+      -0.06060606060606061,
+      0.02711323763955343
+    ],
+    "p_binom_vs_half": 0.005140834389733134,
+    "p_binom_better_than_base": 0.8018243535879637,
+    "macro_f1": 0.512305264571582,
+    "macro_f1_ci": [
+      0.46651332599908607,
+      0.5550560447640739
+    ],
+    "macro_f1_null95": 0.5158138597904915,
+    "macro_f1_perm_p": 0.10194902548725637,
+    "always_up_macro_f1": 0.3640973630831643,
+    "predicted_long_share": 0.7288676236044657,
+    "log_loss": 0.7081671277003903,
+    "log_loss_constant": 0.6825777236565224,
+    "brier": 0.2553737774124105,
+    "brier_constant": 0.2447339168568078,
+    "ece10": 0.07522175142711057,
+    "p_mean": 0.5767289151905,
+    "p_std": 0.12111424976111679,
+    "p_within_0_05": 0.3141945773524721,
+    "histogram": {
+      "[0.00,0.30)": 5,
+      "[0.30,0.40)": 31,
+      "[0.40,0.45)": 43,
+      "[0.45,0.50)": 91,
+      "[0.50,0.55)": 106,
+      "[0.55,0.60)": 113,
+      "[0.60,0.70)": 131,
+      "[0.70,1.00)": 107
+    },
+    "reliability": [
+      {
+        "bin": "0.1-0.2",
+        "n": 1,
+        "predicted": 0.17846825274120484,
+        "observed": 0.0
+      },
+      {
+        "bin": "0.2-0.3",
+        "n": 4,
+        "predicted": 0.2513441545772001,
+        "observed": 0.5
+      },
+      {
+        "bin": "0.3-0.4",
+        "n": 31,
+        "predicted": 0.36509893244541997,
+        "observed": 0.6774193548387096
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 134,
+        "predicted": 0.4612841031256262,
+        "observed": 0.5
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 219,
+        "predicted": 0.5509361694698226,
+        "observed": 0.5662100456621004
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 131,
+        "predicted": 0.6424788290871,
+        "observed": 0.6641221374045801
+      },
+      {
+        "bin": "0.7-0.8",
+        "n": 78,
+        "predicted": 0.7447794509452067,
+        "observed": 0.5512820512820513
+      },
+      {
+        "bin": "0.8-0.9",
+        "n": 26,
+        "predicted": 0.8313564830059085,
+        "observed": 0.46153846153846156
+      },
+      {
+        "bin": "0.9-1.0",
+        "n": 3,
+        "predicted": 0.9224115908568761,
+        "observed": 1.0
+      }
+    ],
+    "overview_val_loss": 0.6968311040842438,
+    "curves": {
+      "min_val_epoch": 6,
+      "min_val_loss": 0.6968311040842438,
+      "first_val": 0.6985955521761195,
+      "last_val": 0.6979401307279729,
+      "first_train": 0.6830159489581016,
+      "last_train": 0.6562100144897126,
+      "gap_last": 0.041730116238260284,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.3071106695623942,
+        "dd": 0.15494954504927705,
+        "orders": 217,
+        "rejected": 9
+      },
+      "ma_crossover_20_50": {
+        "gain": 0.30804385235801335,
+        "dd": 0.10055321239094642,
+        "orders": 12,
+        "rejected": 1
+      },
+      "buy_and_hold": {
+        "gain": 0.39122322925526354,
+        "dd": 0.19181771555137822,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.37356103218738745,
+        "dd": 0.1529968273780445,
+        "exposure": 0.7288676236044657,
+        "switches": 212,
+        "sharpe": 1.0239193207140784
+      },
+      "always_long": {
+        "gain": 0.3903791623983337,
+        "dd": 0.1934890213523237,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": 0.9657682371512948
+      },
+      "oracle": {
+        "gain": 5.030295981813994,
+        "dd": 0.006678800343048956,
+        "exposure": 0.620414673046252,
+        "switches": 153,
+        "sharpe": 8.86665039982051
+      }
+    },
+    "oracle_long_share": 0.620414673046252,
+    "oracle_agreement_with_label": 0.8245614035087719,
+    "model_oracle_agreement": 0.569377990430622,
+    "model_oracle_macro_f1": 0.5095431789737171,
+    "oracle_cum_return": 4.629080427335522,
+    "accounting": "reinvested total-return index; synthetic tradable units",
+    "protocol": null,
+    "pooled": null,
+    "target_long_share": 0.7288676236044657,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "f071ad97-4cf1-4c3f-b747-b6f0992e605f",
+    "source": "synthetic",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 0,
+    "epochs": 8,
+    "n_train": 4532,
+    "n_val": 651,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.49911738746690204,
+    "val_up": 0.4976958525345622,
+    "accuracy": 0.5299539170506913,
+    "accuracy_ci": [
+      0.4915514592933948,
+      0.5683563748079877
+    ],
+    "always_up_accuracy": 0.4976958525345622,
+    "acc_minus_always_up_ci": [
+      -0.02457757296466974,
+      0.0890937019969278
+    ],
+    "p_binom_vs_half": 0.13633743959294564,
+    "p_binom_better_than_base": 0.08503474186456726,
+    "macro_f1": 0.5285913066525312,
+    "macro_f1_ci": [
+      0.4880852810246751,
+      0.5665314304077251
+    ],
+    "macro_f1_null95": 0.5316724092234296,
+    "macro_f1_perm_p": 0.06996501749125437,
+    "always_up_macro_f1": 0.3323076923076923,
+    "predicted_long_share": 0.4485407066052227,
+    "log_loss": 0.6923119015459778,
+    "log_loss_constant": 0.6931365623312781,
+    "brier": 0.24956946301462038,
+    "brier_constant": 0.24999469090445745,
+    "ece10": 0.003968072370246033,
+    "p_mean": 0.4945281624080288,
+    "p_std": 0.04198281959993372,
+    "p_within_0_05": 0.7542242703533026,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 6,
+      "[0.40,0.45)": 88,
+      "[0.45,0.50)": 265,
+      "[0.50,0.55)": 226,
+      "[0.55,0.60)": 64,
+      "[0.60,0.70)": 2,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 6,
+        "predicted": 0.37426473611845107,
+        "observed": 0.6666666666666666
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 353,
+        "predicted": 0.465812240483251,
+        "observed": 0.46742209631728043
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 290,
+        "predicted": 0.5312150936973014,
+        "observed": 0.5310344827586206
+      },
+      {
+        "bin": "0.6-0.7",
+        "n": 2,
+        "predicted": 0.6040736240555356,
+        "observed": 0.5
+      }
+    ],
+    "overview_val_loss": 0.6962320688396992,
+    "curves": {
+      "min_val_epoch": 1,
+      "min_val_loss": 0.6962320688396992,
+      "first_val": 0.6962320688396992,
+      "last_val": 0.6994280237427024,
+      "first_train": 0.6707672606786087,
+      "last_train": 0.6333289510056437,
+      "gap_last": 0.06609907273705873,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": -0.0073367375643438315,
+        "dd": 0.15926903755951202,
+        "orders": 95,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": -0.23198909593198014,
+        "dd": 0.27575153484199344,
+        "orders": 17,
+        "rejected": 0
+      },
+      "buy_and_hold": {
+        "gain": -0.05246885948766267,
+        "dd": 0.164845948421891,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": -0.007467652719389761,
+        "dd": 0.16010436143735807,
+        "exposure": 0.5745007680491552,
+        "switches": 95,
+        "sharpe": -0.028786498891218436
+      },
+      "always_long": {
+        "gain": -0.0527563920665135,
+        "dd": 0.16572371147491638,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": -0.15921431016844637
+      },
+      "oracle": {
+        "gain": 5.939778890745427,
+        "dd": 0.0045305321589715515,
+        "exposure": 0.4685099846390169,
+        "switches": 206,
+        "sharpe": 9.460494270303231
+      }
+    },
+    "oracle_long_share": 0.4685099846390169,
+    "oracle_agreement_with_label": 0.8602150537634409,
+    "model_oracle_agreement": 0.5376344086021505,
+    "model_oracle_macro_f1": 0.5344310203499769,
+    "oracle_cum_return": 5.325378747750382,
+    "accounting": "raw-price",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-08-23",
+      "innerValidationCount": 1071,
+      "classBalance": false,
+      "temperature": 2.405487855393014,
+      "decisionRule": {
+        "flat_below": 0.47676392806254886,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": 4.292642209209277,
+        "inner_log_return": 0.19495373670465022,
+        "inner_always_long_log_return": -0.5083480123403302
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "synthetic"
+      ],
+      "replayAsset": "synthetic"
+    },
+    "pooled": null,
+    "target_long_share": 0.5745007680491552,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  },
+  {
+    "study": "f071ad97-4cf1-4c3f-b747-b6f0992e605f",
+    "source": "synthetic",
+    "model": "MLP",
+    "variant": "reference",
+    "seed": 1,
+    "epochs": 8,
+    "n_train": 4532,
+    "n_val": 651,
+    "val_period": "2017-04-03..2019-12-30",
+    "train_up": 0.49911738746690204,
+    "val_up": 0.4976958525345622,
+    "accuracy": 0.5253456221198156,
+    "accuracy_ci": [
+      0.48847926267281105,
+      0.5622119815668203
+    ],
+    "always_up_accuracy": 0.4976958525345622,
+    "acc_minus_always_up_ci": [
+      -0.02615207373271889,
+      0.08448540706605223
+    ],
+    "p_binom_vs_half": 0.20974364968291143,
+    "p_binom_better_than_base": 0.12783782199560914,
+    "macro_f1": 0.5249824665802393,
+    "macro_f1_ci": [
+      0.48797804410243234,
+      0.5603075682446333
+    ],
+    "macro_f1_null95": 0.5311315608639902,
+    "macro_f1_perm_p": 0.11044477761119441,
+    "always_up_macro_f1": 0.3323076923076923,
+    "predicted_long_share": 0.47465437788018433,
+    "log_loss": 0.6907361578504233,
+    "log_loss_constant": 0.6931365623312781,
+    "brier": 0.24879433139212206,
+    "brier_constant": 0.24999469090445745,
+    "ece10": 0.004065601956636012,
+    "p_mean": 0.49920126462777464,
+    "p_std": 0.035044143334200896,
+    "p_within_0_05": 0.847926267281106,
+    "histogram": {
+      "[0.00,0.30)": 0,
+      "[0.30,0.40)": 1,
+      "[0.40,0.45)": 52,
+      "[0.45,0.50)": 289,
+      "[0.50,0.55)": 263,
+      "[0.55,0.60)": 46,
+      "[0.60,0.70)": 0,
+      "[0.70,1.00)": 0
+    },
+    "reliability": [
+      {
+        "bin": "0.3-0.4",
+        "n": 1,
+        "predicted": 0.3980429932175458,
+        "observed": 0.0
+      },
+      {
+        "bin": "0.4-0.5",
+        "n": 341,
+        "predicted": 0.4726294961860869,
+        "observed": 0.4750733137829912
+      },
+      {
+        "bin": "0.5-0.6",
+        "n": 309,
+        "predicted": 0.5288521750162075,
+        "observed": 0.5242718446601942
+      }
+    ],
+    "overview_val_loss": 0.6984484392767091,
+    "curves": {
+      "min_val_epoch": 3,
+      "min_val_loss": 0.6984484392767091,
+      "first_val": 0.7061134733874141,
+      "last_val": 0.7078108483468809,
+      "first_train": 0.6770504406086277,
+      "last_train": 0.6342649706863565,
+      "gap_last": 0.07354587766052445,
+      "verdict": "val loss never clearly below ln2 (0.6931) -> no generalisable signal; train keeps falling while val rises after best epoch -> overfitting; val loss flat"
+    },
+    "strategies": {
+      "MLP": {
+        "gain": 0.015960442774674233,
+        "dd": 0.164898838990664,
+        "orders": 37,
+        "rejected": 0
+      },
+      "ma_crossover_20_50": {
+        "gain": -0.23198909593198014,
+        "dd": 0.27575153484199344,
+        "orders": 17,
+        "rejected": 0
+      },
+      "buy_and_hold": {
+        "gain": -0.05246885948766267,
+        "dd": 0.164845948421891,
+        "orders": 1,
+        "rejected": 0
+      }
+    },
+    "proxy_pnl": {
+      "model": {
+        "gain": 0.015889393281013575,
+        "dd": 0.16579609352220215,
+        "exposure": 0.8602150537634409,
+        "switches": 37,
+        "sharpe": 0.05000599232215199
+      },
+      "always_long": {
+        "gain": -0.0527563920665135,
+        "dd": 0.16572371147491638,
+        "exposure": 1.0,
+        "switches": 1,
+        "sharpe": -0.15921431016844637
+      },
+      "oracle": {
+        "gain": 5.939778890745427,
+        "dd": 0.0045305321589715515,
+        "exposure": 0.4685099846390169,
+        "switches": 206,
+        "sharpe": 9.460494270303231
+      }
+    },
+    "oracle_long_share": 0.4685099846390169,
+    "oracle_agreement_with_label": 0.8602150537634409,
+    "model_oracle_agreement": 0.5391705069124424,
+    "model_oracle_macro_f1": 0.5376770699189455,
+    "oracle_cum_return": 5.325378747750382,
+    "accounting": "raw-price",
+    "protocol": {
+      "label": "executed: log(open[d+2] / open[d+1]) for a decision at close d",
+      "labelHorizon": 2,
+      "selection": "inner-validation (lowest cross-entropy)",
+      "innerValidationStart": "2012-08-23",
+      "innerValidationCount": 1071,
+      "classBalance": false,
+      "temperature": 2.7838094291351343,
+      "decisionRule": {
+        "flat_below": 0.4419615352671955,
+        "min_hold": 5,
+        "min_t": 2.0,
+        "best_candidate_t": 4.061288480023353,
+        "inner_log_return": -0.1253320161981002,
+        "inner_always_long_log_return": -0.5083480123403302
+      },
+      "classificationThreshold": 0.5,
+      "device": "cpu",
+      "assets": [
+        "synthetic"
+      ],
+      "replayAsset": "synthetic"
+    },
+    "pooled": null,
+    "target_long_share": 0.8602150537634409,
+    "commit": "fb812b819a0b2d38deeb35b5ddd626e225cb5b42"
+  }
+]

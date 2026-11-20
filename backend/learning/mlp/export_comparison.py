@@ -1,4 +1,12 @@
-"""Export the learning MLP and two baselines on a shared validation replay."""
+"""Export the learning model and two baselines on a shared validation replay.
+
+Protocol (docs/training_audit.md):
+- label = the return a decision earns in the replay (next open -> following open);
+- an inner-validation set carved from train selects the epoch, fits the
+  temperature and the default-long decision rule; validation is evaluated once;
+- optionally, training pools several assets (same calendar split, no ticker
+  input); the replay and the per-asset report use the primary asset.
+"""
 
 import argparse
 import hashlib
@@ -12,6 +20,17 @@ from deep_mlp import (
     compute_best_decisions,
     predict_deep_mlp,
     train_deep_mlp,
+)
+from protocol import (
+    LABEL_HORIZON,
+    MIN_HOLD,
+    HoldPolicy,
+    adjusted_opens,
+    executed_returns,
+    fit_policy,
+    inner_cutoff,
+    inner_split,
+    pooled_report,
 )
 from step8_train import fit_normalizer, make_xy, mlp_forward, normalize
 
@@ -52,8 +71,13 @@ class LearningPlayer:
 
 
 def synthetic_frame():
+    """Sine-plus-noise positive control, 1995-2019 so train and validation are large.
+
+    The per-bar drift 0.002*sin(t/10) is a quarter of the noise; a predictor
+    knowing the phase reaches about 56-57% accuracy on validation.
+    """
     rng = np.random.default_rng(41)
-    dates = pd.bdate_range("2015-01-01", "2017-12-31")
+    dates = pd.bdate_range("1995-01-02", "2019-12-31")
     returns = rng.normal(0, 0.008, len(dates)) + 0.002 * np.sin(
         np.arange(len(dates)) / 10
     )
@@ -94,6 +118,45 @@ def dataset_timeline(frame, config):
     )
 
 
+def prepare_asset(frame, config):
+    """Examples of one asset under the executed-return label (validation cut applied)."""
+    frame = frame.loc[frame.index <= pd.Timestamp(config.validation_end)].copy()
+    if not frame.index.is_monotonic_increasing or not frame.index.is_unique:
+        raise ValueError("Expected unique dates in chronological order")
+    closes = frame.adjusted_close.to_numpy()
+    if not np.isfinite(closes).all() or min(closes) <= 0:
+        raise ValueError("Adjusted closes must be positive and finite")
+    values = np.diff(np.log(closes))
+    label_config = config.model_copy(update=dict(label_horizon=LABEL_HORIZON))
+    splits = build_examples(list(frame.index[1:].date), label_config)
+    opens = adjusted_opens(frame)
+
+    def usable(indices):
+        # Executed returns need finite, positive opens on bars t+2 and t+3.
+        return tuple(
+            t
+            for t in indices
+            if np.isfinite(opens[t + 2 : t + 4]).all() and (opens[t + 2 : t + 4] > 0).all()
+        )
+
+    # A 64-return window needs 65 closes inside the partition.
+    val = usable(
+        t for t in splits.validation if frame.index[t - 63].date() >= config.validation_start
+    )
+    return dict(
+        frame=frame,
+        values=values,
+        opens=opens,
+        train=usable(splits.train),
+        val=val,
+        bar_dates=list(frame.index.date),
+    )
+
+
+def windows(values, indices):
+    return make_xy(values, tuple(indices), 64)[0] if len(indices) else np.zeros((0, 64))
+
+
 def export(
     frame,
     origin,
@@ -107,67 +170,114 @@ def export(
     *,
     config=None,
     profile=None,
+    name="primary",
+    pool=None,
+    device="cpu",
+    min_hold=MIN_HOLD,
 ):
+    """Train, select on inner-validation, evaluate once on validation, replay.
+
+    ``pool`` optionally maps other asset names to frames used for training,
+    inner-validation and the pooled validation report.
+    """
     config = config if config is not None else load_split_config()
     profile = profile if profile is not None else load_benchmark_profile()
-    frame = frame.loc[frame.index <= pd.Timestamp(config.validation_end)].copy()
-    if not frame.index.is_monotonic_increasing or not frame.index.is_unique:
-        raise ValueError("Expected unique dates in chronological order")
-    bars = [OHLCVBar(date=d.date(), **row) for d, row in frame.to_dict("index").items()]
-    closes = frame.adjusted_close.to_numpy()
-    if not np.isfinite(closes).all() or min(closes) <= 0:
-        raise ValueError("Adjusted closes must be positive and finite")
-    values = np.diff(np.log(closes))
-    splits = build_examples(list(frame.index[1:].date), config)
-    # A 64-return window needs 65 closes inside the partition.
-    val = tuple(
-        t
-        for t in splits.validation
-        if frame.index[t - 63].date() >= config.validation_start
-    )
-    if not splits.train or not val:
+    primary = prepare_asset(frame, config)
+    frame, values, val = primary["frame"], primary["values"], primary["val"]
+    if not primary["train"] or not val:
         raise ValueError("Insufficient train or validation history")
-    xt, yt = make_xy(values, splits.train, 64)
-    xv, yv = make_xy(values, val, 64)
+    bars = [OHLCVBar(date=d.date(), **row) for d, row in frame.to_dict("index").items()]
+
+    assets = {name: primary}
+    for other, other_frame in (pool or {}).items():
+        if other != name:
+            assets[other] = prepare_asset(other_frame, config)
+
+    # Inner-validation: last 20% of the primary's training decisions, by calendar.
+    cutoff = inner_cutoff([primary["bar_dates"][t + 1] for t in primary["train"]])
+    parts = {}
+    for key, a in assets.items():
+        inner_train, inner_val = inner_split(
+            a["train"], a["bar_dates"], cutoff, embargo=config.embargo
+        )
+        parts[key] = dict(
+            xit=windows(a["values"], inner_train),
+            rit=executed_returns(a["opens"], inner_train),
+            xiv=windows(a["values"], inner_val),
+            riv=executed_returns(a["opens"], inner_val),
+            xv=windows(a["values"], a["val"]),
+            rv=executed_returns(a["opens"], a["val"]),
+            val_dates=[a["bar_dates"][t + 1] for t in a["val"]],
+        )
+    xt = np.concatenate([p["xit"] for p in parts.values()])
+    yt = (np.concatenate([p["rit"] for p in parts.values()]) > 0).astype(np.int64)
+    xs = np.concatenate([p["xiv"] for p in parts.values()])
+    ys = (np.concatenate([p["riv"] for p in parts.values()]) > 0).astype(np.int64)
+    if len(parts[name]["xiv"]) == 0 or len(xt) == 0:
+        raise ValueError("Insufficient training history for an inner-validation set")
+    xv, rv = parts[name]["xv"], parts[name]["rv"]
+    yv = (rv > 0).astype(np.int64)
     mean, std = fit_normalizer(xt)
     return_dates = list(frame.index[1:].date)
     train_oracle = compute_best_decisions(
-        values, splits.train, dates=return_dates, split_name="train", horizon=3
+        values, primary["train"], dates=return_dates, split_name="train", horizon=3
     )
     val_oracle = compute_best_decisions(
         values, val, dates=return_dates, split_name="validation", horizon=3
     )
+
     progress("Training")
+    temperature = None
     if model == "Transformer":
         from transformer_reference import fit_transformer
 
         predict, history, parameter_count = fit_transformer(
-            xt, yt, xv, yv, seed, variant, epochs, checkpoint
+            xt, yt, xs, ys, seed, variant, epochs, checkpoint, device=device
         )
     else:
         params, history, parameter_count = train_deep_mlp(
-            xt,
-            yt,
-            xv,
-            yv,
-            train_oracle=train_oracle,
-            val_oracle=val_oracle,
-            seed=seed,
-            epochs=epochs,
+            xt, yt, xs, ys, seed=seed, epochs=epochs
         )
+        temperature = float(params["temperature"])
         np.savez(checkpoint, **params, mean=mean, std=std)
 
-        def predict(windows):
-            return predict_deep_mlp(windows, params)[:, 1]
+        def predict(windows_):
+            return predict_deep_mlp(windows_, params)[:, 1]
+
+    def batched(x):
+        if len(x) == 0:
+            return np.zeros(0)
+        return np.concatenate([predict(b) for b in np.array_split(x, max(1, len(x) // 512))])
+
+    progress("Fitting the decision rule on inner-validation")
+    policy_fit = fit_policy(
+        [(batched(p["xiv"]), p["riv"]) for p in parts.values() if len(p["xiv"])],
+        min_hold=min_hold,
+        cost=profile.spread_bps / 2 / 10000,
+    )
+
+    pooled = None
+    if len(assets) > 1:
+        progress("Scoring pooled validation")
+        pv, py, pdates, passets = [], [], [], []
+        for key, p in parts.items():
+            if len(p["xv"]):
+                pv.append(batched(p["xv"]))
+                py.append((p["rv"] > 0).astype(int))
+                pdates += p["val_dates"]
+                passets += [key] * len(p["xv"])
+        pooled = pooled_report(np.concatenate(pv), np.concatenate(py), pdates, passets)
 
     class Predictor:
         name = model
 
+        def __init__(self):
+            self.policy = HoldPolicy(policy_fit["flat_below"], policy_fit["min_hold"])
+
         def decide(self, observation):
             p = float(predict(np.array([observation.log_returns]))[0])
-            return PlayerDecision(
-                "long" if p >= 0.5 else "flat", BinaryProbabilities(p, 1 - p)
-            )
+            target = "long" if self.policy.step(p) else "flat"
+            return PlayerDecision(target, BinaryProbabilities(p, 1 - p))
 
     progress("Replaying three strategies")
     engine = build_engine("sqlite:///:memory:")
@@ -181,8 +291,8 @@ def export(
         segment = [
             bar.model_copy(
                 update={
-                    name: getattr(bar, name) * anchor * bar.adjusted_close / bar.close
-                    for name in ("open", "high", "low", "close")
+                    field: getattr(bar, field) * anchor * bar.adjusted_close / bar.close
+                    for field in ("open", "high", "low", "close")
                 }
             )
             for bar in segment
@@ -232,7 +342,10 @@ def export(
                     cases.append(
                         dict(
                             p=decision.probabilities.long,
-                            next=float(values[t + 1]),
+                            # The label: return earned from the next open to the
+                            # following open (what a decision at this close earns).
+                            next=float(rv[i]),
+                            nextClose=float(values[t + 1]),
                             actions=[],
                         )
                     )
@@ -302,14 +415,7 @@ def export(
         for start in range(0, 64, 8):
             masked = xv.copy()
             masked[:, start : start + 8] = mean
-            inspection.append(
-                np.concatenate(
-                    [
-                        predict(batch)
-                        for batch in np.array_split(masked, max(1, len(masked) // 128))
-                    ]
-                )
-            )
+            inspection.append(batched(masked))
         for i, case in enumerate(cases):
             case["occlusion"] = [float(case["p"] - column[i]) for column in inspection]
             case["period"] = str(segment[i + 64].date)[:7]
@@ -382,6 +488,21 @@ def export(
         validationStart=str(segment[0].date),
         validationEnd=str(segment[-1].date),
         trainCount=len(xt),
+        protocol=dict(
+            label="executed: log(open[d+2] / open[d+1]) for a decision at close d",
+            labelHorizon=LABEL_HORIZON,
+            selection="inner-validation (lowest cross-entropy)",
+            innerValidationStart=str(cutoff),
+            innerValidationCount=len(xs),
+            classBalance=False,
+            temperature=temperature,
+            decisionRule=policy_fit,
+            classificationThreshold=0.5,
+            device=device,
+            assets=sorted(assets),
+            replayAsset=name,
+        ),
+        pooled=pooled,
         profile=profile.profile_id,
         dataset=hashlib.sha256(frame.to_csv().encode()).hexdigest(),
         checkpoint=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
@@ -392,7 +513,9 @@ def export(
             dict(
                 step=h["epoch"],
                 trainingLoss=h["train_loss"],
+                # Selection-set loss: inner-validation, never the reported validation.
                 validationLoss=h["val_loss"],
+                **({"selected": h["selected"]} if "selected" in h else {}),
             )
             for h in history
         ],
@@ -403,6 +526,14 @@ def export(
     )
 
 
+def load_pool(directory: Path) -> dict[str, pd.DataFrame]:
+    """Every CSV of a local F1 download, keyed by file stem."""
+    return {
+        path.stem: pd.read_csv(path, index_col="date", parse_dates=["date"])
+        for path in sorted(directory.glob("*.csv"))
+    }
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
@@ -410,11 +541,19 @@ if __name__ == "__main__":
     source.add_argument("--synthetic", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--epochs", type=int, default=8)
+    parser.add_argument("--model", choices=["MLP", "Transformer"], default="MLP")
+    parser.add_argument("--device", default="cpu", help="cpu or cuda[:N] (Transformer only)")
+    parser.add_argument(
+        "--pooled", action="store_true", help="also train on every CSV next to --csv"
+    )
     args = parser.parse_args()
     if args.out.suffix.lower() != ".json" or (
         args.csv and args.csv.resolve() == args.out.resolve()
     ):
         parser.error("Choose a separate .json output path")
+    if args.pooled and not args.csv:
+        parser.error("--pooled needs --csv")
     args.out.parent.mkdir(parents=True, exist_ok=True)
     frame = (
         synthetic_frame()
@@ -425,6 +564,11 @@ if __name__ == "__main__":
         frame,
         "synthetic" if args.synthetic else "experimental",
         args.seed,
-        args.out.with_suffix(".npz"),
+        args.out.with_suffix(".pt" if args.model == "Transformer" else ".npz"),
+        model=args.model,
+        epochs=args.epochs,
+        name="synthetic" if args.synthetic else args.csv.stem,
+        pool=load_pool(args.csv.parent) if args.pooled else None,
+        device=args.device,
     )
     args.out.write_text(json.dumps(report, allow_nan=False), encoding="utf-8")

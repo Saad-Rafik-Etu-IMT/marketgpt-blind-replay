@@ -10,7 +10,29 @@ The existing NumPy MLP runs with the backend dependencies. To enable the referen
 python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
-Select **MLP+Transformer**, enter seeds such as `0,1,2`, and enable four ablations for a paired campaign. Every model sees the same adjusted-close windows. The encoder uses PyTorch's standard self-attention implementation, two heads, a 16-dimensional embedding, mean pooling and a binary output. The ablations remove positional embeddings, dropout, weight decay or the cosine schedule one at a time. Each run restores the lowest-validation-loss weights. The comparison estimates validation performance conditional on training and model selection. Final sealed test evaluation is a separate experiment.
+Select **MLP+Transformer**, keep the default seeds `0,1,2,3,4`, and enable four ablations for a paired campaign. Every model sees the same adjusted-close windows. The encoder uses PyTorch's standard self-attention implementation, two heads, a 16-dimensional embedding, mean pooling and a binary output. The ablations remove positional embeddings, dropout, weight decay or the cosine schedule one at a time. Final sealed test evaluation is a separate experiment.
+
+### Training protocol
+
+Introduced after the [training audit](training_audit.md); studies saved before it used a close-to-close label and tuned on validation.
+
+- **Label.** A decision at the close of day *d* is labelled with `log(open[d+2] / open[d+1])`: the return it actually earns in the replay (filled at the next open). The case field `next` holds this label; `nextClose` keeps the close-to-close return.
+- **Inner-validation.** The last 20% of the training decisions (by calendar date, shared by every asset) form an inner-validation set, separated by the same whole-window and embargo rules as the main split. It selects the epoch (lowest cross-entropy), fits the MLP temperature by likelihood, and fits the trading rule. Validation is evaluated once and is never used for any choice. The learning curves therefore show inner-validation loss.
+- **No class re-weighting.** Training uses plain cross-entropy; the hindsight oracle is reported, not trained on.
+- **Trading rule.** Default long: the player goes flat only below a probability threshold that beats always-long on inner-validation with a t-statistic of at least 2, and holds every position for at least 5 decisions. Classification metrics still use P(up) ≥ 0.5.
+- **Pooled training.** With a downloaded ETF selected, **Train on all local ETFs** trains on every CSV in `data/raw/yfinance/` (no ticker input) and adds a `pooled` validation report: accuracy against always-up and AUC with confidence intervals that resample blocks of calendar dates across all assets together, plus per-asset results. The replay and the main metrics use the selected ETF.
+- **Synthetic positive control.** The synthetic series runs 1995–2019, so validation has about 650 decisions; a predictor that knows the sine's phase reaches about 56–57%.
+
+### Headless runs and GPUs
+
+The worker runs without the UI on any study folder that has a `config.json` (for example one copied from another machine):
+
+```bash
+cd backend
+python learning/mlp/run_study.py data/studies/<uuid> --device cuda   # or cpu
+```
+
+`--device` only affects the Transformer; the NumPy MLP runs on CPU. A CUDA request fails immediately if the installed PyTorch build has no kernels for the card. Older Tesla cards such as the M60 and M40 (compute capability 5.2) are not in recent PyTorch wheels; check with `python -c "import torch; print(torch.cuda.get_arch_list())"` and look for `sm_52`.
 
 ## Historical validation example
 

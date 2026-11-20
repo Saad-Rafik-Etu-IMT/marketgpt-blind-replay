@@ -30,12 +30,20 @@ Variant = Literal["reference", "no-position", "no-dropout", "no-decay", "fixed-l
 
 class StudyConfig(BaseModel):
     source: str = Field(default="synthetic", pattern=r"^[a-zA-Z0-9_-]{1,40}$")
-    seeds: list[int] = Field(default=[0], min_length=1, max_length=5)
+    # Five seeds by default: single-seed differences are noise (training audit).
+    seeds: list[int] = Field(default=[0, 1, 2, 3, 4], min_length=1, max_length=5)
     models: list[Literal["MLP", "Transformer"]] = Field(
         default=["MLP"], min_length=1, max_length=2
     )
     variants: list[Variant] = Field(default=["reference"], min_length=1, max_length=5)
     epochs: int = Field(default=8, ge=1, le=60)
+    # Train on every local ETF CSV; replay and per-asset report use ``source``.
+    pooled: bool = False
+
+
+def close_change(case: dict[str, Any]) -> float:
+    """Close-to-close log return; newer runs label ``next`` with the executed return."""
+    return case.get("nextClose", case["next"])
 
 
 def root() -> Path:
@@ -109,6 +117,8 @@ def start(config: StudyConfig):
         raise HTTPException(
             422, "Install the CPU torch package in the backend environment"
         )
+    if config.pooled and config.source == "synthetic":
+        raise HTTPException(422, "Pooled training needs a downloaded ETF source")
     if config.source != "synthetic":
         if config.source not in sources():
             raise HTTPException(422, "Unknown local dataset")
@@ -456,12 +466,12 @@ def explain(
             else f"Execution status: {outcome['status'] if outcome else event['decision']['action'].replace('_', ' ')}."
         )
         facts = [
-            f"The next adjusted close changed by {math.expm1(r['cases'][index]['next']):+.2%}.",
+            f"The next adjusted close changed by {math.expm1(close_change(r['cases'][index])):+.2%}.",
             execution,
             f"Portfolio value changed by {after['equity'] - before['equity']:+,.2f} to {after['equity']:,.2f} in virtual currency, including execution effects.",
         ]
         if mode == "standard":
-            change = math.expm1(r["cases"][index]["next"])
+            change = math.expm1(close_change(r["cases"][index]))
             facts[0] = (
                 f"The next session's adjusted closing price {'rose' if change > 0 else 'fell' if change < 0 else 'stayed unchanged'} by {abs(change):.2%}."
             )
