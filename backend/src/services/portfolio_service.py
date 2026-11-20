@@ -28,7 +28,6 @@ from src.core.pnl import (
 )
 from src.core.risk_metrics import max_drawdown
 from src.models.fill import FillORM
-from src.models.market import OHLCVBarORM
 from src.models.order import OrderORM
 from src.models.portfolio import PortfolioSnapshotORM, PositionORM
 from src.models.session import ReplaySessionORM
@@ -36,11 +35,14 @@ from src.schemas.portfolio import (
     PortfolioSnapshotRead,
     PositionRead,
 )
+from src.services.bar_queries import bar_at
 
 # --- Public API ------------------------------------------------------------
 
 
-def initialize_session(db: Session, session_id: str) -> PortfolioSnapshotRead:
+def initialize_session(
+    db: Session, session_id: str, *, commit: bool = True
+) -> PortfolioSnapshotRead:
     """Emit the initial snapshot for a fresh session (bar 0, cash = initial)."""
     session_orm = _require_session(db, session_id)
     snap = _persist_snapshot(
@@ -51,7 +53,8 @@ def initialize_session(db: Session, session_id: str) -> PortfolioSnapshotRead:
         positions={},
         instruments_close={},
     )
-    db.commit()
+    if commit:
+        db.commit()
     return snap
 
 
@@ -240,24 +243,10 @@ def _latest_cash(db: Session, session_id: str, fallback: float) -> float:
 def _marks_at_bar(db: Session, session_id: str, bar_index: int) -> dict[str, float]:
     """Map the session instrument to its close at the requested bar."""
     session_orm = _require_session(db, session_id)
-    bars = session_bars(db, session_orm)
-    if not (0 <= bar_index < len(bars)):
+    bar = bar_at(db, session_orm, bar_index)
+    if bar is None:
         return {}
-    bar = bars[bar_index]
     return {session_orm.instrument: bar.close}
-
-
-def session_bars(db: Session, session_orm: ReplaySessionORM) -> list[OHLCVBarORM]:
-    """Ordered OHLCV bars spanning the session's window."""
-    return list(
-        db.execute(
-            select(OHLCVBarORM)
-            .where(OHLCVBarORM.instrument == session_orm.instrument)
-            .where(OHLCVBarORM.date >= session_orm.start_date)
-            .where(OHLCVBarORM.date <= session_orm.end_date)
-            .order_by(OHLCVBarORM.date)
-        ).scalars()
-    )
 
 
 def _upsert_snapshot(

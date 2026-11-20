@@ -24,6 +24,7 @@ from src.models.order import OrderORM
 from src.models.session import ReplaySessionORM
 from src.schemas.market import OHLCVBar
 from src.schemas.order import INSUFFICIENT_CASH
+from src.services.bar_queries import bar_at
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +46,11 @@ def process_pending_orders(
     if session_orm is None:
         return []
 
-    bars = _ordered_bars(db, session_orm)
-    if not bars:
-        return []
     current_index = session_orm.current_bar_index
-    if current_index >= len(bars):
+    bar = bar_at(db, session_orm, current_index)
+    if bar is None:
         return []  # defensive — replay_engine should prevent this
-    current_bar = _to_schema(bars[current_index])
+    current_bar = _to_schema(bar)
 
     pending = (
         db.execute(
@@ -253,18 +252,6 @@ def _cancel_oco_sibling(db: Session, order: OrderORM) -> None:
     )
     for sibling in siblings:
         sibling.status = "cancelled"
-
-
-def _ordered_bars(db: Session, session: ReplaySessionORM) -> list[OHLCVBarORM]:
-    return list(
-        db.execute(
-            select(OHLCVBarORM)
-            .where(OHLCVBarORM.instrument == session.instrument)
-            .where(OHLCVBarORM.date >= session.start_date)
-            .where(OHLCVBarORM.date <= session.end_date)
-            .order_by(OHLCVBarORM.date)
-        ).scalars()
-    )
 
 
 def _to_schema(orm: OHLCVBarORM) -> OHLCVBar:

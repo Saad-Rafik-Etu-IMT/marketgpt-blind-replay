@@ -19,6 +19,9 @@ import pytest
 from sqlalchemy.orm import Session
 
 from src.models.market import OHLCVBarORM
+from src.models.session import ReplaySessionORM
+from src.services import portfolio_service
+from src.services.bar_queries import bar_at
 from src.services.replay_engine import (
     JumpDirectionError,
     SessionCompletedError,
@@ -57,6 +60,27 @@ def seeded_db(db_session: Session) -> Session:
 
 
 # --- Session creation ------------------------------------------------------
+
+def test_initial_snapshot_failure_rolls_back_session(seeded_db, monkeypatch):
+    original = portfolio_service.initialize_session
+
+    def fail(*args, **kwargs):
+        original(*args, **kwargs)
+        raise RuntimeError("snapshot unavailable")
+
+    monkeypatch.setattr(portfolio_service, "initialize_session", fail)
+    with pytest.raises(RuntimeError, match="snapshot unavailable"):
+        create_session(seeded_db, "SPY", date(2023, 1, 3), date(2023, 1, 16))
+    assert list_sessions(seeded_db) == []
+
+
+def test_single_bar_query_respects_session_window(seeded_db):
+    session = create_session(seeded_db, "SPY", date(2023, 1, 4), date(2023, 1, 10))
+    orm = seeded_db.get(ReplaySessionORM, session.session_id)
+    assert bar_at(seeded_db, orm, 0).date == date(2023, 1, 4)
+    assert bar_at(seeded_db, orm, 4).date == date(2023, 1, 10)
+    assert bar_at(seeded_db, orm, 5) is None
+    assert bar_at(seeded_db, orm, -1) is None
 
 
 def test_create_session_with_defaults(seeded_db: Session) -> None:
