@@ -7,7 +7,7 @@ import { CompetitionReplay } from "@/components/research/CompetitionReplay";
 export default function ReplayPage() {
   const [manual, setManual] = useState(false);
   return (
-    <>
+    <div className="research-stack replay-page">
       <nav className="study-nav" aria-label="Replay mode">
         <button
           className="bench-button"
@@ -37,6 +37,6 @@ export default function ReplayPage() {
           <MarketReplayCockpit />
         </>
       )}
-    </>
+    </div>
   );
 }

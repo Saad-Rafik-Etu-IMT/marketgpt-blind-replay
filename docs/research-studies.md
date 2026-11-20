@@ -31,7 +31,9 @@ Both models fell below the always-up baseline on accuracy in this run. Macro-F1 
 ### Recorded AI competition
 
 Open **Replay → AI competition** or use **Watch AI competition** on a saved
-study. Select a study, seed and available Transformer variant. For a four-player
+study. Replay automatically opens the most recent completed trace-enabled study;
+use **Change study** to select another study, seed or available Transformer variant.
+For a four-player
 comparison, train a fresh study with both MLP and Transformer (CPU PyTorch is
 required). A one-model study still has the two rule-based strategies. Older saved
 studies remain readable, but need to be rerun to record engine events.
@@ -51,6 +53,10 @@ once. No browser-side trading or retraining is needed during playback.
   inspect the corresponding fields. Inspect the previous revealed decision to
   explain the execution outcome. Prices and PnL remain hidden until their
   session is revealed in this UI.
+- **Overview** shows market fills and portfolio equity, **Decision** contains
+  the engine inspector and explanations, and **Performance** contains PnL,
+  drawdown, exposure and probability plots. Playback stays at the same session
+  when switching views; auto-pause switches are grouped under **Auto-pause**.
 - The price plot uses simulated closes and exact execution prices (▲ buy, ▼
   sell). Equity, cumulative net change from initial equity, drawdown, market
   exposure and probability plots display only the revealed prefix. An AI's
@@ -59,7 +65,8 @@ once. No browser-side trading or retraining is needed during playback.
   presentation, not an adversarial blind test. Use the isolated jury listener
   for a real vote-before-reveal challenge.
 - **Manual simulation** still exposes the original interactive replay controls.
-- New scientific figures have **Export SVG** buttons. The files are scalable
+- New scientific figures have **SVG** download and expand controls. Expand a
+  chart for a large presentation view and close it with Escape or Close. The files are scalable
   vector figures with a white background, axes, titles and series labels for
   reports or slides.
 

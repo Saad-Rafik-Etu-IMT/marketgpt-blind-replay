@@ -100,6 +100,25 @@ def recorded_study(monkeypatch, tmp_path):
     return study, folder
 
 
+def test_study_picker_identifies_source_models_and_recorded_replay(recorded_study):
+    study, folder = recorded_study
+    config = json.loads((folder / "config.json").read_text())
+    config.update(source="SPY", epochs=2)
+    (folder / "config.json").write_text(json.dumps(config))
+    (folder / "status.json").write_text(
+        json.dumps(dict(state="complete", message="Ready", done=2, total=2))
+    )
+    client = TestClient(create_app())
+    summary = client.get("/api/studies").json()["studies"][0]
+    assert summary["id"] == study
+    assert summary["source"] == "SPY"
+    assert summary["models"] == ["MLP", "Transformer"]
+    assert summary["epochs"] == 2
+    assert not summary["hasTrace"]
+    (folder / "timeline.json").write_text("{}")
+    assert client.get("/api/studies").json()["studies"][0]["hasTrace"]
+
+
 def test_competition_joins_exact_recorded_runs(recorded_study):
     study, folder = recorded_study
     client = TestClient(create_app())

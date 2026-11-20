@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api, pct } from "./StudyWidgets";
 import { LinePlot, plotColors, points, type Series } from "./ScientificPlot";
 import { SensitivityPlot } from "./ResearchFigures";
+import { studyLabel, type StudySummary } from "@/lib/research/study-summary";
 
 type Portfolio = {
   bar_index: number;
@@ -124,6 +125,7 @@ export function CompetitionReplay() {
   const study = params.get("study") || "";
   const seed = params.has("seed") ? Number(params.get("seed")) : null;
   const variant = params.get("variant") || "reference";
+  const [selectionOpen, setSelectionOpen] = useState(false);
   function change(values: Record<string, string | null>) {
     const q = new URLSearchParams(params.toString());
     for (const [key, value] of Object.entries(values)) {
@@ -134,9 +136,16 @@ export function CompetitionReplay() {
   }
   const inventory = useQuery({
     queryKey: ["competition-inventory"],
-    queryFn: () => api<{ studies: { id: string; state: string }[] }>(""),
+    queryFn: () => api<{ studies: StudySummary[] }>(""),
     refetchInterval: 3500,
   });
+  const latest = inventory.data?.studies.find(
+    (s) => s.state === "complete" && s.hasTrace,
+  );
+  useEffect(() => {
+    if (!params.has("study") && latest)
+      router.replace(`/replay?study=${latest.id}`, { scroll: false });
+  }, [params, latest, router]);
   const overview = useQuery({
     queryKey: ["competition-study", study],
     queryFn: () => api<Overview>(`/${study}`),
@@ -174,10 +183,12 @@ export function CompetitionReplay() {
     enabled: !!study && selectedSeed !== undefined && runs.length > 0,
     refetchInterval: overview.data?.status.state === "complete" ? false : 3500,
   });
+  const showSelection = selectionOpen || !replay.data;
+  const studySummary = inventory.data?.studies.find((s) => s.id === study);
   return (
     <div className="research-stack">
       <section className="bench-panel competition-selection">
-        <div className="section-heading">
+        <div className="workspace-controls replay-selection-summary">
           <div>
             <h2>AI competition replay</h2>
             {!study && (
@@ -186,13 +197,46 @@ export function CompetitionReplay() {
                 from a saved validation study.
               </p>
             )}
+            {replay.data && (
+              <p className="muted compact-status">
+                {studySummary
+                  ? studyLabel(studySummary)
+                  : overview.data?.config.source}{" "}
+                · seed {selectedSeed}
+                {variants.length > 1 ? ` · ${selectedVariant}` : ""}
+              </p>
+            )}
           </div>
-          <Link className="bench-button primary-action" href="/studies">
-            Train competing models ↗
-          </Link>
+          <div className="workspace-actions">
+            {replay.data && (
+              <button
+                className="bench-button"
+                aria-expanded={showSelection}
+                aria-controls="replay-selection-fields"
+                onClick={() => setSelectionOpen(!selectionOpen)}
+              >
+                {showSelection ? "Done" : "Change study"}
+              </button>
+            )}
+            <Link
+              className={`bench-button ${study ? "" : "primary-action"}`}
+              href={
+                study
+                  ? `/studies?study=${study}&seed=${selectedSeed ?? 0}&variant=${selectedVariant}`
+                  : "/studies?new=1"
+              }
+            >
+              {study ? "Open study" : "Train competing models"}{" "}
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
-        <div className="study-controls">
-          <label>
+        <div
+          id="replay-selection-fields"
+          className="workspace-controls replay-selection-fields"
+          hidden={!showSelection}
+        >
+          <label className="study-field">
             Saved study
             <select
               value={study}
@@ -209,13 +253,13 @@ export function CompetitionReplay() {
               <option value="">Select a study</option>
               {inventory.data?.studies.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.id.slice(0, 8)} · {s.state}
+                  {studyLabel(s)}
                 </option>
               ))}
             </select>
           </label>
           {seeds.length > 0 && (
-            <label>
+            <label className="study-field short-field">
               Seed
               <select
                 value={selectedSeed}
@@ -235,7 +279,7 @@ export function CompetitionReplay() {
             </label>
           )}
           {variants.length > 1 && (
-            <label>
+            <label className="study-field short-field">
               Transformer variant
               <select
                 value={selectedVariant}
@@ -255,20 +299,30 @@ export function CompetitionReplay() {
             {String(inventory.error || overview.error || replay.error)}
           </p>
         )}
-        {overview.data && (
-          <p role="status">
+        {overview.data && !replay.data && (
+          <p role="status" className="muted compact-status">
             {overview.data.config.source} · {overview.data.status.message}
             {!runs.length &&
               " · Engine traces are available for new studies as runs complete."}
           </p>
         )}
-        {!study && (
+        {!study && inventory.data && !latest && (
           <p className="muted">
             Select a saved study, or train a synthetic MLP + Transformer study
             to compare both AI players and the two rule-based strategies.
           </p>
         )}
       </section>
+      {study && !replay.data && !replay.error && overview.isPending && (
+        <p role="status" className="bench-panel muted">
+          Loading saved study…
+        </p>
+      )}
+      {study && replay.isFetching && !replay.data && (
+        <p role="status" className="bench-panel muted">
+          Loading recorded replay…
+        </p>
+      )}
       {replay.data && (
         <Replay
           key={`${study}/${selectedSeed}/${selectedVariant}/${replay.data.players.length}/${params.get("case")}`}
@@ -298,6 +352,23 @@ function Replay({
   const [pauseDisagree, setPauseDisagree] = useState(false);
   const [pauseFill, setPauseFill] = useState(false);
   const [selected, setSelected] = useState(0);
+  const [view, setView] = useState<"Overview" | "Decision" | "Performance">(
+    "Overview",
+  );
+  const contentRef = useRef<HTMLDivElement>(null);
+  function showView(next: typeof view) {
+    setView(next);
+    // Keep a selected view in sight when navigating from a scrolled chart.
+    requestAnimationFrame(() => {
+      const content = contentRef.current;
+      if (
+        content &&
+        content.getBoundingClientRect().top <
+          (window.innerWidth > 760 ? 205 : 0)
+      )
+        content.scrollIntoView({ block: "start" });
+    });
+  }
   const [stage, setStage] = useState<number | null>(null);
   const [showPrevious, setShowPrevious] = useState(false);
   const [reason, setReason] = useState("");
@@ -456,19 +527,17 @@ function Replay({
   const displayDate = (i: number) => `Session ${i}`;
   return (
     <>
-      <section className="bench-panel replay-console">
+      <section className="bench-panel replay-console replay-toolbar">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">
-              {data.origin === "synthetic"
-                ? "Synthetic trained competition"
-                : "Historical validation competition"}
-            </p>
             <h2>
               Session {cursor} / {length}
             </h2>
             <p>
-              {data.profile.profile_id} · {money(data.profile.initial_cash)}{" "}
+              {data.origin === "synthetic"
+                ? "Synthetic"
+                : "Historical validation"}{" "}
+              · {data.profile.profile_id} · {money(data.profile.initial_cash)}{" "}
               virtual starting capital per player
             </p>
           </div>
@@ -481,7 +550,7 @@ function Replay({
             Awaiting recorded runs: {data.missing.join(", ")}
           </p>
         )}
-        <div className="bench-actions">
+        <div className="bench-actions replay-actions">
           <button
             className="bench-button primary-action"
             disabled={cursor === length}
@@ -505,7 +574,7 @@ function Replay({
           <button className="bench-button" onClick={() => seek(0)}>
             Restart
           </button>
-          <label>
+          <label className="speed-control">
             Speed{" "}
             <select
               value={speed}
@@ -518,22 +587,32 @@ function Replay({
               ))}
             </select>
           </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={pauseDisagree}
-              onChange={(e) => setPauseDisagree(e.target.checked)}
-            />{" "}
-            Pause on AI disagreement
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={pauseFill}
-              onChange={(e) => setPauseFill(e.target.checked)}
-            />{" "}
-            Pause on fill
-          </label>
+          <details className="replay-options">
+            <summary>
+              Auto-pause
+              {pauseDisagree || pauseFill
+                ? ` (${Number(pauseDisagree) + Number(pauseFill)})`
+                : ""}
+            </summary>
+            <div className="replay-options-popover">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={pauseDisagree}
+                  onChange={(e) => setPauseDisagree(e.target.checked)}
+                />{" "}
+                Pause on AI disagreement
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={pauseFill}
+                  onChange={(e) => setPauseFill(e.target.checked)}
+                />{" "}
+                Pause on fill
+              </label>
+            </div>
+          </details>
         </div>
         <label className="replay-seek">
           Session{" "}
@@ -547,242 +626,313 @@ function Replay({
           />
         </label>
         {reason && <p role="status">{reason}</p>}
-        <div className="player-grid">
-          {data.players.map((p, i) => (
+        <nav className="replay-views" aria-label="Competition views">
+          {(["Overview", "Decision", "Performance"] as const).map((name) => (
             <button
-              key={p.name}
-              className="player-card"
-              aria-pressed={selected === i}
-              onClick={() => setSelected(i)}
-              style={{ borderTopColor: color(i) }}
+              key={name}
+              className="bench-button"
+              aria-pressed={view === name}
+              onClick={() => showView(name)}
             >
-              <span>{playerText(p.name)}</span>
-              <strong>{money(current(p).equity)}</strong>
-              <span>
-                {money(current(p).equity - p.initial.equity)} PnL · cash{" "}
-                {money(current(p).cash)}
-              </span>
-              <small>
-                {cursor < length
-                  ? `Next target: ${targetText(p.events[cursor].decision.target)}`
-                  : "Final balance"}
-              </small>
+              {name}
             </button>
           ))}
-        </div>
-        <details>
-          <summary>Recorded execution settings and provenance</summary>
-          <p>
-            {data.accounting} · Spread {data.profile.spread_bps} bps · Fee per
-            unit {data.profile.fee_per_unit} · Cash reserve{" "}
-            {pct(data.profile.cash_reserve_fraction ?? 0)}
-          </p>
-          <p>
-            Profile hash {data.profileHash}
-            <br />
-            Dataset {data.dataset}
-          </p>
-          <pre>{JSON.stringify(data.profile.risk_limits, null, 2)}</pre>
-        </details>
+        </nav>
       </section>
-      <section className="bench-panel competition-chart-grid">
-        <LinePlot
-          title="Market close and executed orders"
-          series={[
-            {
-              name: "Simulated close",
-              points: points(market.map((b) => b.close)),
-              color: "#819599",
-            },
-          ]}
-          markers={markers}
-          xDomain={domain}
-          formatX={displayDate}
-          xLabel="Revealed session · ▲ buy · ▼ sell · actual fill prices"
-          yLabel="Simulated price"
-        />
-        <LinePlot
-          title="Portfolio equity comparison"
-          series={wealth}
-          xDomain={domain}
-          formatX={displayDate}
-          xLabel="Revealed session"
-          yLabel="Virtual currency"
-        />
-      </section>
-      <section className="bench-panel">
-        <div className="section-heading">
-          <div>
-            <h2>
-              {playerText(player.name)} · Decision {stepIndex + 1}
-            </h2>
-            <p className="muted">
-              Recorded engine events at each step.{" "}
-              {revealed
-                ? "Next-session outcome revealed."
-                : "The next session has not yet been revealed."}
-            </p>
-          </div>
+      <div className="player-grid" aria-label="Select a player to inspect">
+        {data.players.map((p, i) => (
           <button
-            className="bench-button"
-            disabled={cursor === 0 || cursor === length}
-            onClick={() => setShowPrevious(!showPrevious)}
+            key={p.name}
+            className="player-card"
+            aria-pressed={selected === i}
+            onClick={() => {
+              setSelected(i);
+              showView("Decision");
+            }}
+            style={{ borderTopColor: color(i) }}
           >
-            {showPrevious
-              ? "Inspect current decision"
-              : "Inspect last revealed decision"}
+            <span>
+              <i
+                className="player-dot"
+                style={{ background: color(i) }}
+                aria-hidden="true"
+              />
+              {playerText(p.name)}
+            </span>
+            <strong>{money(current(p).equity)}</strong>
+            <span>
+              <span
+                className={
+                  current(p).equity >= p.initial.equity
+                    ? "positive-value"
+                    : "negative-value"
+                }
+              >
+                {money(current(p).equity - p.initial.equity)} PnL
+              </span>{" "}
+              · {pct(current(p).equity / p.initial.equity - 1)}
+            </span>
+            <small>
+              {cursor < length
+                ? `Next target: ${targetText(p.events[cursor].decision.target)}`
+                : "Final balance"}
+            </small>
           </button>
-        </div>
-        <div className="engine-stages">
-          <div>
-            {stageButton(0)}
-            <p>64 past returns</p>
-            <strong>
-              {event.decision.probabilities
-                ? pct(event.decision.probabilities.long) + " up"
-                : "Rule-based"}
-            </strong>
-          </div>
-          <div>
-            {stageButton(1)}
-            <strong>{targetText(event.decision.target)}</strong>
-            <p>
-              Held {event.decision.execution_context.position_quantity} units
-            </p>
-          </div>
-          <div>
-            {stageButton(2)}
-            <strong>
-              {actionText[event.decision.action] ?? event.decision.action}
-            </strong>
-            <p>
-              {event.decision.order_quantity != null
-                ? `${event.decision.order_quantity} units`
-                : "No order size"}
-            </p>
-            <p>{event.decision.pre_trade_rejection}</p>
-          </div>
-          <div>
-            {stageButton(3)}
-            <strong>
-              {revealed ? (event.execution?.status ?? "No order") : "Hidden"}
-            </strong>
-            {revealed && event.execution && (
-              <p>
-                {event.execution.fill_quantity ?? "—"} units ·{" "}
-                {event.execution.fill_price != null
-                  ? money(event.execution.fill_price)
-                  : "—"}{" "}
-                · fee {event.execution.fee ?? "—"}
-                <br />
-                {event.execution.rejection_reason}
-              </p>
+        ))}
+      </div>
+      <div ref={contentRef} className="replay-view-content research-stack">
+        {view === "Overview" && (
+          <>
+            <section className="competition-chart-grid replay-market-charts">
+              <LinePlot
+                title="Market close and executed orders"
+                series={[
+                  {
+                    name: "Simulated close",
+                    points: points(market.map((b) => b.close)),
+                    color: "#819599",
+                  },
+                ]}
+                markers={markers}
+                xDomain={domain}
+                formatX={displayDate}
+                xLabel="Revealed session · ▲ buy · ▼ sell · actual fill prices"
+                yLabel="Simulated price"
+              />
+              <LinePlot
+                title="Portfolio equity comparison"
+                series={wealth}
+                xDomain={domain}
+                formatX={displayDate}
+                xLabel="Revealed session"
+                yLabel="Virtual currency"
+              />
+            </section>
+            <section className="bench-panel decision-preview">
+              <div>
+                <h2>
+                  {playerText(player.name)} · Decision {stepIndex + 1}
+                </h2>
+                <p className="muted">
+                  {revealed
+                    ? "Next-session outcome revealed."
+                    : "The next session has not yet been revealed."}
+                </p>
+              </div>
+              <div className="decision-preview-stat">
+                <span>Prediction</span>
+                <strong>
+                  {event.decision.probabilities
+                    ? pct(event.decision.probabilities.long) + " up"
+                    : "Rule-based"}
+                </strong>
+              </div>
+              <div className="decision-preview-stat">
+                <span>Target</span>
+                <strong>{targetText(event.decision.target)}</strong>
+              </div>
+              <button
+                className="bench-button"
+                onClick={() => showView("Decision")}
+              >
+                Inspect decision <span aria-hidden="true">→</span>
+              </button>
+            </section>
+          </>
+        )}
+        {view === "Decision" && (
+          <section className="bench-panel">
+            <div className="section-heading">
+              <div>
+                <h2>
+                  {playerText(player.name)} · Decision {stepIndex + 1}
+                </h2>
+                <p className="muted">
+                  {revealed
+                    ? "Next-session outcome revealed."
+                    : "The next session has not yet been revealed."}
+                </p>
+              </div>
+              <button
+                className="bench-button"
+                disabled={cursor === 0 || cursor === length}
+                onClick={() => setShowPrevious(!showPrevious)}
+              >
+                {showPrevious
+                  ? "Inspect current decision"
+                  : "Inspect last revealed decision"}
+              </button>
+            </div>
+            <div className="engine-stages">
+              <div>
+                {stageButton(0)}
+                <p>64 past returns</p>
+                <strong>
+                  {event.decision.probabilities
+                    ? pct(event.decision.probabilities.long) + " up"
+                    : "Rule-based"}
+                </strong>
+              </div>
+              <div>
+                {stageButton(1)}
+                <strong>{targetText(event.decision.target)}</strong>
+                <p>
+                  Held {event.decision.execution_context.position_quantity}{" "}
+                  units
+                </p>
+              </div>
+              <div>
+                {stageButton(2)}
+                <strong>
+                  {actionText[event.decision.action] ?? event.decision.action}
+                </strong>
+                <p>
+                  {event.decision.order_quantity != null
+                    ? `${event.decision.order_quantity} units`
+                    : "No order size"}
+                </p>
+                <p>{event.decision.pre_trade_rejection}</p>
+              </div>
+              <div>
+                {stageButton(3)}
+                <strong>
+                  {revealed
+                    ? (event.execution?.status ?? "No order")
+                    : "Hidden"}
+                </strong>
+                {revealed && event.execution && (
+                  <p>
+                    {event.execution.fill_quantity ?? "—"} units ·{" "}
+                    {event.execution.fill_price != null
+                      ? money(event.execution.fill_price)
+                      : "—"}{" "}
+                    · fee {event.execution.fee ?? "—"}
+                    <br />
+                    {event.execution.rejection_reason}
+                  </p>
+                )}
+              </div>
+              <div>
+                {stageButton(4)}
+                <strong>
+                  {revealed ? money(event.portfolio.equity) : "Hidden"}
+                </strong>
+                {revealed && (
+                  <p>
+                    Cash {money(event.portfolio.cash)} · total fees{" "}
+                    {money(event.portfolio.total_fees)}
+                  </p>
+                )}
+              </div>
+            </div>
+            {stage !== null && (
+              <div className="stage-record">
+                <h3>{stageNames[stage]} · recorded details</h3>
+                <pre className="engine-json">
+                  {JSON.stringify(stageValues[stage], null, 2)}
+                </pre>
+              </div>
             )}
-          </div>
-          <div>
-            {stageButton(4)}
-            <strong>
-              {revealed ? money(event.portfolio.equity) : "Hidden"}
-            </strong>
-            {revealed && (
-              <p>
-                Cash {money(event.portfolio.cash)} · total fees{" "}
-                {money(event.portfolio.total_fees)}
-              </p>
+            <Explanation
+              key={`${player.sourceRun}/${player.playerIndex}/${stepIndex}/${revealed}`}
+              path={`/${study}/${player.sourceRun}/explain/${stepIndex}`}
+              player={player.playerIndex}
+              revealed={revealed}
+            />
+            <div className="comparison-figures">
+              <LinePlot
+                title="Visible input window"
+                series={[
+                  {
+                    name: "Relative adjusted close",
+                    points: points(
+                      data.market
+                        .slice(
+                          event.decision.decision_bar_index - 64,
+                          event.decision.decision_bar_index + 1,
+                        )
+                        .map(
+                          (b, _, bars) =>
+                            (100 * b.adjusted_close) / bars[0].adjusted_close,
+                        ),
+                    ),
+                  },
+                ]}
+                xLabel="65 visible closes (64 returns)"
+                yLabel="Index base 100"
+              />
+              {player.occlusion && (
+                <SensitivityPlot values={player.occlusion[stepIndex]} />
+              )}
+            </div>
+            <details>
+              <summary>Exact engine records</summary>
+              <pre className="engine-json">
+                {JSON.stringify(revealed ? event : event.decision, null, 2)}
+              </pre>
+            </details>
+            {player.run && (
+              <Link
+                className="bench-button"
+                href={`/studies?study=${study}&run=${player.run}&case=${stepIndex}&tab=Inspector`}
+              >
+                Open research inspector →
+              </Link>
             )}
-          </div>
-        </div>
-        {stage !== null && (
-          <div className="stage-record">
-            <h3>{stageNames[stage]} · recorded details</h3>
-            <pre className="engine-json">
-              {JSON.stringify(stageValues[stage], null, 2)}
-            </pre>
-          </div>
+          </section>
         )}
-        <LinePlot
-          title="Visible input window"
-          series={[
-            {
-              name: "Relative adjusted close",
-              points: points(
-                data.market
-                  .slice(
-                    event.decision.decision_bar_index - 64,
-                    event.decision.decision_bar_index + 1,
-                  )
-                  .map(
-                    (b, _, bars) =>
-                      (100 * b.adjusted_close) / bars[0].adjusted_close,
-                  ),
-              ),
-            },
-          ]}
-          xLabel="65 visible closes (64 returns)"
-          yLabel="Index base 100"
-        />
-        {player.occlusion && (
-          <SensitivityPlot values={player.occlusion[stepIndex]} />
+        {view === "Performance" && (
+          <section className="competition-chart-grid replay-market-charts">
+            <LinePlot
+              title="Cumulative profit and loss"
+              series={pnl}
+              xDomain={domain}
+              formatX={displayDate}
+              xLabel="Revealed session"
+              yLabel="Virtual currency"
+            />
+            <LinePlot
+              title="Drawdown comparison"
+              series={dd}
+              xDomain={domain}
+              formatX={displayDate}
+              xLabel="Revealed session"
+              formatY={pct}
+            />
+            <LinePlot
+              title="Market exposure"
+              series={exposure}
+              xDomain={domain}
+              formatX={displayDate}
+              xLabel="Revealed session"
+              formatY={pct}
+            />
+            <LinePlot
+              title="AI prediction probability"
+              series={probability}
+              xDomain={domain}
+              formatX={displayDate}
+              yDomain={[0, 1]}
+              xLabel="Decision session · only available predictions"
+              formatY={pct}
+            />
+          </section>
         )}
-        <Explanation
-          key={`${player.sourceRun}/${player.playerIndex}/${stepIndex}/${revealed}`}
-          path={`/${study}/${player.sourceRun}/explain/${stepIndex}`}
-          player={player.playerIndex}
-          revealed={revealed}
-        />
-        <details>
-          <summary>Exact engine records</summary>
-          <pre className="engine-json">
-            {JSON.stringify(revealed ? event : event.decision, null, 2)}
-          </pre>
-        </details>
-        {player.run && (
-          <Link
-            className="bench-button"
-            href={`/studies?study=${study}&run=${player.run}&case=${stepIndex}&tab=Inspector`}
-          >
-            Open research inspector ↗
-          </Link>
-        )}
-      </section>
-      <section className="bench-panel">
-        <h2>Performance through the selected session</h2>
-        <div className="competition-chart-grid">
-          <LinePlot
-            title="Cumulative profit and loss"
-            series={pnl}
-            xDomain={domain}
-            formatX={displayDate}
-            xLabel="Revealed session"
-            yLabel="Virtual currency"
-          />
-          <LinePlot
-            title="Drawdown comparison"
-            series={dd}
-            xDomain={domain}
-            formatX={displayDate}
-            xLabel="Revealed session"
-            formatY={pct}
-          />
-          <LinePlot
-            title="Market exposure"
-            series={exposure}
-            xDomain={domain}
-            formatX={displayDate}
-            xLabel="Revealed session"
-            formatY={pct}
-          />
-          <LinePlot
-            title="AI prediction probability"
-            series={probability}
-            xDomain={domain}
-            formatX={displayDate}
-            yDomain={[0, 1]}
-            xLabel="Decision session · only available predictions"
-            formatY={pct}
-          />
-        </div>
-      </section>
+      </div>
+      <details className="bench-panel replay-provenance">
+        <summary>Recorded execution settings and provenance</summary>
+        <p>
+          {data.accounting} · Spread {data.profile.spread_bps} bps · Fee per
+          unit {data.profile.fee_per_unit} · Cash reserve{" "}
+          {pct(data.profile.cash_reserve_fraction ?? 0)}
+        </p>
+        <p>
+          Profile hash {data.profileHash}
+          <br />
+          Dataset {data.dataset}
+        </p>
+        <pre>{JSON.stringify(data.profile.risk_limits, null, 2)}</pre>
+      </details>
     </>
   );
 }

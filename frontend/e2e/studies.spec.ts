@@ -10,7 +10,12 @@ test("a saved study shares one run across training, errors, blind replay and por
   await launcher.waitFor();
   if (!(await page.getByLabel("Epochs").isVisible())) await launcher.click();
   await page.getByLabel("Epochs").fill("1");
+  const started = page.waitForResponse(
+    (r) => r.url().endsWith("/api/studies") && r.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Start training" }).click();
+  const created = await (await started).json();
+  await expect(page).toHaveURL(new RegExp(`study=${created.id}`));
   await expect(
     page.getByRole("heading", { name: "Model and ablation comparison" }),
   ).toBeVisible({ timeout: 140000 });
@@ -92,6 +97,10 @@ test("a saved study shares one run across training, errors, blind replay and por
   await expect(
     page.getByRole("heading", { name: "AI competition replay" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Change study", exact: true }).click();
+  await expect(page.getByLabel("Saved study")).toBeVisible();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByLabel("Saved study")).not.toBeVisible();
   await page.getByRole("button", { name: "Restart", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: /Session 0 \// }),
@@ -99,6 +108,7 @@ test("a saved study shares one run across training, errors, blind replay and por
   await expect(
     page.getByRole("img", { name: "Portfolio equity comparison" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Inspect decision" }).click();
   await expect(
     page.getByText("The next session has not yet been revealed.", {
       exact: false,
@@ -114,6 +124,36 @@ test("a saved study shares one run across training, errors, blind replay and por
     .getByRole("button", { name: "Explain from measured facts" })
     .click();
   await expect(page.getByText(/Portfolio value changed by/)).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("competition-decision.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("navigation", { name: "Competition views" })
+    .getByRole("button", { name: "Performance" })
+    .click();
+  await expect(
+    page.getByRole("img", { name: "Drawdown comparison" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Session 1 \// }),
+  ).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Competition views" })
+    .getByRole("button", { name: "Overview" })
+    .click();
+  const expand = page.getByRole("button", {
+    name: "Expand Portfolio equity comparison",
+  });
+  await expand.click();
+  await expect(
+    page.getByRole("dialog", { name: "Portfolio equity comparison" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "Portfolio equity comparison" }),
+  ).not.toBeVisible();
+  await expect(expand).toBeFocused();
   const download = page.waitForEvent("download");
   await page
     .getByRole("button", { name: "Export Portfolio equity comparison as SVG" })
@@ -143,4 +183,9 @@ test("a saved study shares one run across training, errors, blind replay and por
       fullPage: true,
     });
   }
+  await page.goto("/replay");
+  await expect(page).toHaveURL(/study=/);
+  await expect(
+    page.getByRole("heading", { name: /Session 0 \// }),
+  ).toBeVisible();
 });
