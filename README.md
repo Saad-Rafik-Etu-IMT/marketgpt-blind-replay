@@ -164,6 +164,7 @@ Placeholder links below are evidence of reserved locations, **not implementation
 | F16 Fact-grounded decision explanations | 2 | 📋 backend planned; initial UI implemented | B attribution; A LLM/validator | [Explanation interface](docs/research-interface.md); [AI placeholder](backend/src/ai/README.md), no live LLM, attribution or semantic validator; no local LLM runtime is configured yet ([DEC-4](docs/work-plan.md#blocking-decisions)) |
 | T1-T2 Feature catalogue and point-in-time engine | Extension | ✅ T1-T2 done (Groups A to G, 70 features; H to J planned) | AI-assisted, authorized 2026-11-20 | [Feature package](backend/src/features), [catalogue doc](docs/features.md), [future-mutation tests](backend/tests/test_feature_point_in_time.py), [baseline parity](backend/tests/test_feature_baseline_parity.py), redundancy-checked profiles; not yet used by any model or player |
 | T3 Dataset builder | Extension | ✅ T3 done | AI-assisted, authorized 2026-11-20 | [Dataset package](backend/src/datasets), [doc](docs/datasets.md), [tests incl. parity with the study pipeline](backend/tests/test_datasets.py); not yet called by the study worker (T6) |
+| T4 Prediction targets | Extension | ✅ T4 done | AI-assisted, authorized 2026-11-20 | [Target package](backend/src/targets), [doc](docs/targets.md), [tests incl. finite-difference gradients](backend/tests/test_targets.py); binary, three-class (volatility-scaled neutral band), expected return, volatility, quantiles, multi-horizon; 20-session targets are development-only with the current split; no model trained yet (T5) |
 
 ## Audit 2026-11-17: verified state and gaps
 
@@ -945,6 +946,7 @@ npm exec --yes --package=node@20 -- node node_modules\playwright\cli.js test
 - [Remaining work plan, integration contracts and decisions](docs/work-plan.md)
 - [Feature catalogue and point-in-time rules](docs/features.md)
 - [Dataset construction](docs/datasets.md)
+- [Prediction targets](docs/targets.md)
 - [CI configuration](.github/workflows/ci.yml)
 
 📋 Planned documentation, not existing files: licensed data/split protocol,

@@ -31,13 +31,14 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
-from src.data.split import SplitConfig, load_split_config
+from src.data.split import SplitConfig, SplitError, load_split_config
 from src.datasets.examples import AssetExamples, ContextRule, select_examples
 from src.datasets.folds import INNER_FRACTION, inner_cutoff, inner_split
 from src.datasets.labels import DEFAULT_LABEL, LabelSpec, get_label
 from src.datasets.preprocessing import Scaler, ScalerKind, fit_scaler
 from src.features import DEFAULT_REGISTRY, FeatureRegistry, compute, get_profile
 from src.features.canonical import to_canonical
+from src.targets import Target, get_target
 
 
 class DatasetError(ValueError):
@@ -49,6 +50,7 @@ class Representation(str, Enum):
     SEQUENCE = "sequence"
 
 
+SIGMA_FEATURE = "realized_vol_20"  # sigma known at t, for volatility-aware targets
 PART_NAMES: tuple[str, ...] = (
     "train",
     "inner_train",
@@ -66,6 +68,7 @@ class DatasetSpec(BaseModel):
     features: tuple[str, ...] = ()
     profile: str | None = None
     label: str = DEFAULT_LABEL
+    target: str | None = None
     representation: Representation = Representation.TABULAR
     sequence_length: int = Field(default=1, ge=1, le=256)
     context: ContextRule = ContextRule.OWN_PARTITION
@@ -81,6 +84,8 @@ class DatasetSpec(BaseModel):
     def _check(self) -> Self:
         if bool(self.features) == bool(self.profile):
             raise ValueError("give exactly one of features or profile")
+        if self.target is not None and self.label != DEFAULT_LABEL:
+            raise ValueError("give either a T3 label or a T4 target, not both")
         if self.representation is Representation.TABULAR and self.sequence_length != 1:
             raise ValueError("sequence_length > 1 needs the sequence representation")
         return self
@@ -98,6 +103,8 @@ class Part:
     label_values: np.ndarray
     y: np.ndarray
     index: pd.DataFrame
+    targets: np.ndarray | None = None
+    sigma: np.ndarray | None = None
 
     def __len__(self) -> int:
         return len(self.y)
@@ -113,6 +120,8 @@ class Dataset:
     scaler: Scaler
     parts: dict[str, Part]
     manifest: dict[str, object] = field(repr=False)
+    target: Target | None = None
+    target_state: dict[str, object] | None = None
 
     @property
     def fingerprint(self) -> str:
@@ -125,6 +134,8 @@ class _AssetData:
     features: np.ndarray
     label_values: np.ndarray
     examples: AssetExamples
+    targets: np.ndarray
+    sigma: np.ndarray
     parts: dict[str, tuple[int, ...]] = field(default_factory=dict)
 
 
@@ -147,10 +158,14 @@ def build_dataset(
         raise DatasetError("no asset frames given")
     config = config if config is not None else load_split_config()
     label = get_label(spec.label)
+    target = get_target(spec.target) if spec.target else None
+    horizon = target.horizon_bars if target else label.horizon
     feature_ids = spec.feature_ids()
     columns = tuple(registry.columns(feature_ids))
     length = spec.sequence_length
     lookback = max(registry.lookback(feature_ids) + length - 1, spec.min_lookback)
+    if target is not None and target.needs_sigma:
+        lookback = max(lookback, registry.lookback([SIGMA_FEATURE]))
     primary = spec.primary_asset or next(iter(frames))
     if primary not in frames:
         raise DatasetError(f"primary asset {primary!r} not among the frames")
@@ -165,18 +180,34 @@ def build_dataset(
             frame = frame.loc[np.asarray(dates <= pd.Timestamp(config.validation_end))]
         canonical = to_canonical(frame)
         matrix = compute(frame, feature_ids, registry, blind=spec.blind)
-        examples = select_examples(
-            list(canonical.index.date),
-            config,
-            lookback=lookback,
-            horizon=label.horizon,
-            context=spec.context,
-        )
+        try:
+            examples = select_examples(
+                list(canonical.index.date),
+                config,
+                lookback=lookback,
+                horizon=horizon,
+                context=spec.context,
+            )
+        except SplitError as exc:
+            raise DatasetError(
+                f"{name}: a label reading {horizon} bars needs every crossed gap to hold "
+                f"{horizon} + embargo bars ({exc}). With config/split.json the "
+                "validation/test gap has 21 bars, so development-only targets "
+                "cannot use the sealed test set"
+            ) from exc
+        if target is not None:
+            targets = target.raw(canonical)
+            sigma = compute(frame, [SIGMA_FEATURE], registry).values.to_numpy()[:, 0]
+        else:
+            targets = label.values(canonical)[:, None]
+            sigma = np.full(len(canonical), np.nan)
         assets[name] = _AssetData(
             canonical=canonical,
             features=matrix.values.to_numpy(dtype=np.float64),
-            label_values=label.values(canonical),
+            label_values=targets[:, 0],
             examples=examples,
+            targets=targets,
+            sigma=sigma,
         )
 
     primary_train = assets[primary].examples
@@ -201,13 +232,19 @@ def build_dataset(
     raw: dict[str, dict[str, object]] = {}
     dropped: dict[str, int] = {}
     for part in [p for p in PART_NAMES if p != "test" or spec.include_test]:
-        xs, values, index = [], [], []
+        xs, values, index, tvals, sigmas = [], [], [], [], []
         dropped[part] = 0
         for name, data in assets.items():
             indices = data.parts[part]
+            pick = list(indices)
             x = _rows(data, indices, length)
-            label_values = data.label_values[list(indices)] if indices else np.zeros(0)
-            keep = np.isfinite(x).all(axis=(1, 2)) & np.isfinite(label_values)
+            t_values = (
+                data.targets[pick] if pick else np.zeros((0, data.targets.shape[1]))
+            )
+            sigma = data.sigma[pick] if pick else np.zeros(0)
+            keep = np.isfinite(x).all(axis=(1, 2)) & np.isfinite(t_values).all(axis=1)
+            if target is not None and target.needs_sigma:
+                keep &= np.isfinite(sigma)
             dropped[part] += int((~keep).sum())
             kept = (
                 np.asarray(indices, dtype=int)[keep]
@@ -215,7 +252,9 @@ def build_dataset(
                 else np.zeros(0, dtype=int)
             )
             xs.append(x[keep])
-            values.append(label_values[keep])
+            values.append(t_values[keep, 0])
+            tvals.append(t_values[keep])
+            sigmas.append(sigma[keep])
             index.append(
                 pd.DataFrame(
                     {
@@ -233,6 +272,8 @@ def build_dataset(
                 else x_all[:, -1, :]
             ),
             "values": np.concatenate(values),
+            "targets": np.concatenate(tvals),
+            "sigma": np.concatenate(sigmas),
             "index": pd.concat(index, ignore_index=True),
         }
 
@@ -240,13 +281,26 @@ def build_dataset(
     if len(fit_rows) == 0:  # type: ignore[arg-type]
         raise DatasetError(f"no {spec.fit_on} rows to fit the scaler")
     scaler = fit_scaler(spec.scaler, fit_rows, columns)  # type: ignore[arg-type]
+    target_state = (
+        target.fit(raw[spec.fit_on]["targets"], raw[spec.fit_on]["sigma"])  # type: ignore[arg-type]
+        if target is not None
+        else None
+    )
+
+    def encode(r: dict[str, object]) -> np.ndarray:
+        if target is None:
+            return (r["values"] > 0).astype(np.int64)  # type: ignore[operator]
+        return target.encode(r["targets"], r["sigma"], target_state or {})  # type: ignore[arg-type]
+
     parts = {
         name: Part(
             x=scaler.transform(r["x"]),  # type: ignore[arg-type]
             x_raw=r["x"],  # type: ignore[arg-type]
             label_values=r["values"],  # type: ignore[arg-type]
-            y=(r["values"] > 0).astype(np.int64),  # type: ignore[operator]
+            y=encode(r),
             index=r["index"],  # type: ignore[arg-type]
+            targets=r["targets"],  # type: ignore[arg-type]
+            sigma=r["sigma"],  # type: ignore[arg-type]
         )
         for name, r in raw.items()
     }
@@ -263,6 +317,8 @@ def build_dataset(
         parts=parts,
         dropped=dropped,
         scaler=scaler,
+        target=target,
+        target_state=target_state,
     )
     return Dataset(
         spec=spec,
@@ -273,4 +329,6 @@ def build_dataset(
         scaler=scaler,
         parts=parts,
         manifest=manifest,
+        target=target,
+        target_state=target_state,
     )

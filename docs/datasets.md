@@ -40,7 +40,7 @@ Example `t` is decided at the close of bar `t`. Inputs use bars `t - lookback ..
 | `executed_return_v1` (default) | 2 | `log(adj_open[t+2] / adj_open[t+1])`: filled at the next open, marked at the following open, as in the replay |
 | `close_to_close_v1` | 1 | `log(adj_close[t+1] / adj_close[t])`: the W1 label |
 
-`y = 1` when the value is strictly positive. The full target registry (three classes, regression, quantiles, volatility, multi-horizon) is tranche T4.
+`y = 1` when the value is strictly positive. For other targets (three classes, regression, quantiles, volatility, multi-horizon), set `target=` instead of `label=`: see [targets.md](targets.md).
 
 The team's code indexes returns, so its example `t'` is decided at the close of bar `t' + 1`. The parity test converts between the two.
 
@@ -130,4 +130,3 @@ The study worker will use them for hyperparameter and feature-group selection (T
 
 - No caching: building the extended profile on six ETFs takes about 1.5 s.
 - The ticker is never an input, but each row's asset stays in `index` for per-asset reports.
-- Labels are binary up/not-up of a continuous return. Other targets wait for T4.

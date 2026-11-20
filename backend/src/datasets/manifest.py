@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from src.datasets.labels import LabelSpec
     from src.datasets.preprocessing import Scaler
     from src.features.registry import FeatureRegistry
+    from src.targets import Target
 
 SCHEMA_VERSION = 1
 
@@ -92,6 +93,8 @@ def build_manifest(
     parts: dict[str, Part],
     dropped: dict[str, int],
     scaler: Scaler,
+    target: Target | None = None,
+    target_state: dict[str, object] | None = None,
 ) -> dict[str, object]:
     body: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
@@ -112,12 +115,17 @@ def build_manifest(
             "catalogue_fingerprint": registry.fingerprint(feature_ids),
             "redundancy_warnings": registry.redundancies(feature_ids),
         },
-        "label": label.describe(),
+        "label": None if target is not None else label.describe(),
+        "target": (
+            None
+            if target is None
+            else {**target.describe(), "fitted_state": target_state}
+        ),
         "split": config.model_dump(mode="json"),
         "selection": {
             "context": spec.context.value,
             "effective_lookback": lookback,
-            "label_horizon": label.horizon,
+            "label_horizon": label.horizon if target is None else target.horizon_bars,
             "embargo": config.embargo,
             "inner_cutoff": cutoff.isoformat(),
             "inner_fraction": spec.inner_fraction,
@@ -134,7 +142,16 @@ def build_manifest(
                 "first": part.index["date"].min().isoformat() if len(part) else None,
                 "last": part.index["date"].max().isoformat() if len(part) else None,
                 "dropped_undefined": dropped[name],
-                "arrays": array_fingerprint(part.x_raw, part.label_values),
+                "arrays": array_fingerprint(
+                    part.x_raw,
+                    part.label_values,
+                    *(
+                        []
+                        # T3 datasets (no target) keep their T3 fingerprint.
+                        if target is None or part.targets is None
+                        else [part.targets, np.asarray(part.y, dtype=np.float64)]
+                    ),
+                ),
             }
             for name, part in parts.items()
         },
