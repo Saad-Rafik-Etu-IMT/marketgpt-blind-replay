@@ -16,6 +16,13 @@ test("research laboratory runs a real synthetic campaign and preserves the selec
   await expect(
     page.getByRole("img", { name: /rsi_14.*development history/ }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Zoom in Aligned underlying market history" })
+    .click();
+  await page
+    .getByRole("button", { name: "Fit / reset", exact: true })
+    .first()
+    .click();
   await tabs.getByRole("link", { name: "Training", exact: true }).click();
   await page.getByLabel("Campaign name").fill("E2E laboratory");
   for (let i = 0; i < 3; i++)
@@ -45,6 +52,25 @@ test("research laboratory runs a real synthetic campaign and preserves the selec
   await expect(
     page.getByRole("img", { name: /Model versus statistical baselines/ }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Open prediction explorer" }).click();
+  await expect(
+    page.getByRole("heading", { name: /Confusion matrix · actual/ }),
+  ).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: /False positive/ }).click();
+  await page.getByRole("button", { name: "All prediction cases" }).click();
+  await page
+    .getByRole("button", { name: /^\d{4}-\d{2}-\d{2}$/ })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("img", {
+      name: /Sequential feature contribution waterfall/,
+    }),
+  ).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Measure counterfactual" }).click();
+  await expect(page.getByText(/Measured probability:/)).toBeVisible({
+    timeout: 30_000,
+  });
   await tabs.getByRole("link", { name: "Explainability", exact: true }).click();
   await expect(
     page.getByRole("img", { name: /Feature sensitivity/ }),

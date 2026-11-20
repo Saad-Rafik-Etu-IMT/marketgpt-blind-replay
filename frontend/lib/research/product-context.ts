@@ -47,6 +47,7 @@ export function labHref(
       "asset",
       "source",
       "cursor",
+      "decisionDate",
       "opponent",
       "feature",
     ])
@@ -56,13 +57,17 @@ export function labHref(
     changes.run !== undefined &&
     String(changes.run ?? "") !== (next.get("run") ?? "")
   ) {
-    for (const key of ["entry", "cursor", "opponent"]) next.delete(key);
+    for (const key of ["entry", "cursor", "opponent", "decisionDate"])
+      next.delete(key);
   }
   if (changes.part !== undefined && changes.part !== next.get("part")) {
-    for (const key of ["entry", "cursor", "opponent"]) next.delete(key);
+    for (const key of ["entry", "cursor", "opponent", "decisionDate"])
+      next.delete(key);
   }
-  if (changes.asset !== undefined && changes.asset !== next.get("asset"))
+  if (changes.asset !== undefined && changes.asset !== next.get("asset")) {
     next.delete("cursor");
+    next.delete("decisionDate");
+  }
   for (const [key, value] of Object.entries(changes)) {
     if (value === undefined) continue;
     if (value === null || value === "") next.delete(key);

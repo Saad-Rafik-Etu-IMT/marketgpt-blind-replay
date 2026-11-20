@@ -28,6 +28,7 @@ from src.config import BACKEND_DIR, get_settings
 from src.data.split import load_split_config
 from src.datasets import ContextRule, ScalerKind
 from src.evaluation import EvaluationError, evaluate_experiment, read_evaluation
+from src.evaluation.inspection import inspect_prediction, prediction_cases
 from src.experiments import (
     EXPERIMENT_PROFILES,
     MAX_RUNS,
@@ -679,3 +680,71 @@ def evaluation(experiment: UUID, part: str) -> dict[str, Any]:
         return read_evaluation(folder, part)
     except (EvaluationError, FileNotFoundError) as exc:
         raise HTTPException(404, "No evaluation for this part") from exc
+
+
+@router.get("/{experiment}/runs/{key}/predictions")
+def predictions(
+    experiment: UUID,
+    key: str,
+    target: str = "direction_binary_v1",
+    part: str = "inner_validation",
+) -> dict[str, Any]:
+    if not RUN_KEY.fullmatch(key) or target not in TARGETS:
+        raise HTTPException(404, "Unknown run or target")
+    with lock:
+        if _running():
+            raise HTTPException(409, "Wait for the training worker to finish")
+        try:
+            return prediction_cases(
+                folder_of(experiment), data_dir(), key, part, target
+            )
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+
+@router.get("/{experiment}/runs/{key}/predictions/{index}")
+def prediction(
+    experiment: UUID,
+    key: str,
+    index: int,
+    target: str = "direction_binary_v1",
+    part: str = "inner_validation",
+    column: int | None = Query(default=None, ge=0),
+    replacement: float = Query(default=0, ge=-3, le=3),
+) -> dict[str, Any]:
+    if not RUN_KEY.fullmatch(key) or target not in TARGETS:
+        raise HTTPException(404, "Unknown run or target")
+    with lock:
+        if _running():
+            raise HTTPException(409, "Wait for the training worker to finish")
+        try:
+            return inspect_prediction(
+                folder_of(experiment),
+                data_dir(),
+                key,
+                part,
+                target,
+                index,
+                column,
+                replacement,
+            )
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/{experiment}/runs/{key}/predictions/{index}/explain")
+def prediction_explanation(
+    experiment: UUID,
+    key: str,
+    index: int,
+    target: str = "direction_binary_v1",
+    part: str = "inner_validation",
+) -> dict[str, Any]:
+    info = prediction(experiment, key, index, target, part, None, 0)
+    strongest = max(info["features"], key=lambda f: abs(f["delta"]))
+    facts = [
+        f"The registered checkpoint assigns {info['probability']:.1%} probability to the positive class.",
+        f"The zero-scaled-input reference probability is {info['reference']:.1%}.",
+        f"In registered column order, {strongest['column']} has the largest absolute sequential change ({strongest['delta'] * 100:+.2f} percentage points); this is order-dependent and non-causal.",
+    ]
+    return explain_facts(facts)

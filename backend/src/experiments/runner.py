@@ -310,11 +310,32 @@ class Runner:
 
     def _run(self, run: Run, datasets: list[Dataset]) -> dict[str, Any]:
         began = time.monotonic()
+        cpu_began = time.process_time()
+        telemetry = []
         config = self.spec.train_config(run.preset, run.seed)
         data = TrainingData.from_datasets(datasets)
 
         def progress(record: dict[str, Any]) -> None:
             self._check()
+            elapsed = max(time.monotonic() - began, 1e-9)
+            sample = {
+                "elapsed_seconds": elapsed,
+                "cpu_core_percent": 100 * (time.process_time() - cpu_began) / elapsed,
+                "estimated_remaining_seconds": elapsed
+                / max(1, record["epoch"])
+                * max(0, config.epochs - record["epoch"]),
+            }
+            # Unix peak resident memory; unavailable on Windows, never fabricated.
+            try:
+                import resource
+                import sys
+
+                sample["peak_rss_mib"] = resource.getrusage(
+                    resource.RUSAGE_SELF
+                ).ru_maxrss / (1024**2 if sys.platform == "darwin" else 1024)
+            except ImportError:
+                pass
+            telemetry.append({"epoch": record["epoch"], **sample})
             self._write_status(
                 current={
                     "run": run.key,
@@ -322,6 +343,7 @@ class Runner:
                     "epochs": config.epochs,
                     "train_loss": record["train_loss"],
                     "select_loss": record["select_loss"],
+                    **sample,
                 }
             )
             trace = self.folder / "progress" / f"{run.key}.json"
@@ -374,6 +396,7 @@ class Runner:
             "epochs_run": len(result.history),
             "stopped_early": result.stopped_early,
             "history": result.history,
+            "telemetry": telemetry,
             "rows": {name: len(part) for name, part in datasets[0].parts.items()},
             "dataset_fingerprints": {ds.target.id: ds.fingerprint for ds in datasets},
             "inner_validation": self._evaluate(model, datasets, "inner_validation"),

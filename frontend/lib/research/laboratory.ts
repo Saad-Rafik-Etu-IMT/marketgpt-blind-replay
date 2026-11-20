@@ -108,6 +108,10 @@ export type Status = {
     epochs?: number;
     train_loss?: number;
     select_loss?: number;
+    elapsed_seconds?: number;
+    cpu_core_percent?: number;
+    estimated_remaining_seconds?: number;
+    peak_rss_mib?: number;
   } | null;
 };
 export type Campaign = Status & { id: string; name: string; profile: string };
@@ -131,6 +135,16 @@ export type Run = {
   preset?: string;
   seed?: number;
   parameter_count?: number;
+  inputs?: number;
+  seconds?: number;
+  stopped_early?: boolean;
+  telemetry?: {
+    epoch: number;
+    elapsed_seconds: number;
+    cpu_core_percent: number;
+    estimated_remaining_seconds: number;
+    peak_rss_mib?: number;
+  }[];
   best_epoch?: number;
   epochs_run?: number;
   device?: string;

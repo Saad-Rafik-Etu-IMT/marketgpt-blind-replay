@@ -12,7 +12,10 @@ import {
   Replay,
   Run,
 } from "@/lib/research/laboratory";
-import { LinePlot, PlotFrame, plotColors } from "./ScientificPlot";
+import { LinePlot, PlotFrame, plotColors, ChartSync } from "./ScientificPlot";
+import { MarketWorkbench } from "./MarketWorkbench";
+import { PredictionExplorer } from "./PredictionExplorer";
+import type { PredictionCase } from "@/lib/research/prediction-analysis";
 import { ConfusionPlot } from "./ResearchFigures";
 import {
   humanLabel,
@@ -33,6 +36,8 @@ export function EvaluationView({
   run,
   autoEvaluating = false,
   explanation = false,
+  runs = [],
+  onReplayCase,
 }: {
   id: string;
   part: string;
@@ -41,6 +46,8 @@ export function EvaluationView({
   run?: Run;
   autoEvaluating?: boolean;
   explanation?: boolean;
+  runs?: Run[];
+  onReplayCase?: (row: PredictionCase) => void;
 }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -162,6 +169,17 @@ export function EvaluationView({
           ) : (
             <EvaluationFigures entry={selected} />
           )}
+          {run?.state === "complete" && (
+            <PredictionExplorer
+              key={run.key + selected.target + part}
+              id={id}
+              run={run.key}
+              part={part}
+              target={selected.target}
+              runs={runs}
+              onReplay={onReplayCase}
+            />
+          )}
           {!explanation && (
             <>
               <h3>Feature ablation</h3>
@@ -180,8 +198,29 @@ export function EvaluationView({
                     {report.ablation.findings.map((r, i) => (
                       <tr key={i}>
                         <td>
-                          {humanLabel(r.feature_profile)} /{" "}
-                          {humanLabel(r.preset)}
+                          <button
+                            className="bench-button"
+                            disabled={
+                              !report.results.some(
+                                (e) =>
+                                  e.feature_profile === r.feature_profile &&
+                                  e.preset === r.preset &&
+                                  e.target === r.target,
+                              )
+                            }
+                            onClick={() => {
+                              const found = report.results.find(
+                                (e) =>
+                                  e.feature_profile === r.feature_profile &&
+                                  e.preset === r.preset &&
+                                  e.target === r.target,
+                              );
+                              if (found) changeEntry(found);
+                            }}
+                          >
+                            {humanLabel(r.feature_profile)} /{" "}
+                            {humanLabel(r.preset)}
+                          </button>
                         </td>
                         <td>{humanLabel(r.target)}</td>
                         <td>{numberText(r.comparison.mean_difference)}</td>
@@ -192,6 +231,68 @@ export function EvaluationView({
                 </table>
               </div>
               <h3>Compare configurations · {humanLabel(selected.target)}</h3>
+              <details className="supporting-details">
+                <summary>
+                  Configuration loss heatmap · same partition and target
+                </summary>
+                <div className="lab-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Features / model</th>
+                        {[...new Set(matching.map((e) => e.preset))].map(
+                          (v) => (
+                            <th key={v}>{humanLabel(v)}</th>
+                          ),
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...new Set(matching.map((e) => e.feature_profile))].map(
+                        (fp) => (
+                          <tr key={fp}>
+                            <th>{humanLabel(fp)}</th>
+                            {[...new Set(matching.map((e) => e.preset))].map(
+                              (ps) => {
+                                const e = matching.find(
+                                    (e) =>
+                                      e.feature_profile === fp &&
+                                      e.preset === ps,
+                                  ),
+                                  losses = matching.map((e) => e.ensemble.loss),
+                                  lo = Math.min(...losses),
+                                  hi = Math.max(...losses);
+                                return (
+                                  <td key={ps}>
+                                    {e ? (
+                                      <button
+                                        className="bench-button"
+                                        style={{
+                                          background: `color-mix(in srgb, var(--accent) ${15 + 55 * (1 - (e.ensemble.loss - lo) / (hi - lo || 1))}%, var(--panel))`,
+                                        }}
+                                        onClick={() => changeEntry(e)}
+                                      >
+                                        {numberText(e.ensemble.loss)}
+                                      </button>
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </td>
+                                );
+                              },
+                            )}
+                          </tr>
+                        ),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="muted">
+                  Darker cells indicate lower observed loss; not a promotion
+                  decision. Compare paired confidence intervals before
+                  interpreting differences.
+                </p>
+              </details>
               <div className="lab-two">
                 <label>
                   Filter models and features
@@ -431,6 +532,35 @@ function EvaluationFigures({ entry: e }: { entry: EvaluationEntry }) {
       </details>
       <details className="supporting-details">
         <summary>Robustness · market conditions and transaction costs</summary>
+        {Object.entries(e.regimes).map(([kind, rows]) => (
+          <LinePlot
+            key={kind}
+            title={`Regime loss · ${humanLabel(kind)}`}
+            xLabel="Regime"
+            yLabel={e.loss}
+            formatX={(x) => humanLabel(Object.keys(rows)[Math.round(x)] ?? "")}
+            series={[
+              {
+                name: "Model",
+                points: Object.values(rows).map((r, x) => ({
+                  x,
+                  y: r.model_loss,
+                })),
+                dots: true,
+                scatter: true,
+              },
+              {
+                name: "Strongest baseline",
+                points: Object.values(rows).map((r, x) => ({
+                  x,
+                  y: r.strongest_baseline_loss,
+                })),
+                dots: true,
+                scatter: true,
+              },
+            ]}
+          />
+        ))}
         {e.cost_sensitivity?.length ? (
           <>
             <LinePlot
@@ -576,105 +706,6 @@ export function ConfidenceIntervals({ entry }: { entry: EvaluationEntry }) {
   );
 }
 
-function MarketCandles({ replay, end }: { replay: Replay; end: number }) {
-  const start = Math.max(0, end - 79);
-  const bars = replay.market.slice(start, end + 1);
-  if (
-    !bars.length ||
-    !bars.every((b) => [b.open, b.high, b.low, b.close].every(Number.isFinite))
-  )
-    return null;
-  const min = Math.min(...bars.map((b) => b.low!)),
-    max = Math.max(...bars.map((b) => b.high!));
-  const w = 580 / bars.length,
-    y = (v: number) => 174 - (132 * (v - min)) / (max - min || 1),
-    x = (i: number) => 82 + w * (i + 0.5);
-  const fills =
-    replay.players[0]?.events.filter(
-      (e) =>
-        e.portfolio.bar_index <= end &&
-        e.execution?.fill_bar != null &&
-        e.execution.fill_price != null &&
-        e.execution.fill_bar >= start &&
-        e.execution.fill_bar <= end,
-    ) ?? [];
-  return (
-    <PlotFrame title="Market candles · latest revealed sessions" height={235}>
-      {[min, (min + max) / 2, max].map((v, i) => (
-        <g key={i}>
-          <line x1={82} x2={662} y1={y(v)} y2={y(v)} stroke="var(--line)" />
-          <text
-            x={74}
-            y={y(v) + 4}
-            textAnchor="end"
-            fontSize="10"
-            fill="var(--muted)"
-          >
-            {numberText(v, 2)}
-          </text>
-        </g>
-      ))}
-      {bars.map((b, i) => {
-        const color = b.close >= b.open! ? "#148b82" : "#b95061";
-        return (
-          <g key={b.date}>
-            <line
-              x1={x(i)}
-              x2={x(i)}
-              y1={y(b.high!)}
-              y2={y(b.low!)}
-              stroke={color}
-            />
-            <rect
-              x={x(i) - w * 0.32}
-              y={Math.min(y(b.open!), y(b.close))}
-              width={Math.max(1, w * 0.64)}
-              height={Math.max(1, Math.abs(y(b.open!) - y(b.close)))}
-              fill={color}
-            >
-              <title>
-                {b.date} · Open {numberText(b.open, 2)} · High{" "}
-                {numberText(b.high, 2)} · Low {numberText(b.low, 2)} · Close{" "}
-                {numberText(b.close, 2)}
-              </title>
-            </rect>
-          </g>
-        );
-      })}
-      {fills.map((e, i) => (
-        <circle
-          key={i}
-          cx={x(e.execution!.fill_bar! - start)}
-          cy={y(e.execution!.fill_price!)}
-          r={4}
-          fill={e.decision.order_side === "sell" ? "#b95061" : "#527bd1"}
-          stroke="var(--panel)"
-        >
-          <title>
-            {humanLabel(e.decision.action)} ·{" "}
-            {numberText(e.execution!.fill_price, 2)}
-          </title>
-        </circle>
-      ))}
-      <text x={82} y={198} fontSize="10" fill="var(--muted)">
-        {bars[0].date}
-      </text>
-      <text x={662} y={198} textAnchor="end" fontSize="10" fill="var(--muted)">
-        {bars.at(-1)?.date}
-      </text>
-      <text
-        x={350}
-        y={219}
-        textAnchor="middle"
-        fontSize="11"
-        fill="var(--muted)"
-      >
-        Session · green rising close, red falling close · dots = model fills
-      </text>
-    </PlotFrame>
-  );
-}
-
 function Importance({ entry }: { entry: EvaluationEntry }) {
   const data = entry.importance ?? [];
   return (
@@ -748,6 +779,7 @@ export function ReplayView({
   runs = [],
   opponent = "",
   onOpponent,
+  inspectDate,
 }: {
   id: string;
   run: string;
@@ -758,12 +790,35 @@ export function ReplayView({
   runs?: Run[];
   opponent?: string;
   onOpponent?: (value: string) => void;
+  inspectDate?: string;
 }) {
   const [requestedCursor, setCursor] = useState(initialCursor),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [pauseDisagreement, setPauseDisagreement] = useState(true);
+  const [bookmarks, setBookmarks] = useState<{ bar: number; note: string }[]>(
+    [],
+  );
+  const [note, setNote] = useState("");
+  const [guesses, setGuesses] = useState<Record<number, string>>({});
+  const [blindHuman, setBlindHuman] = useState(false);
+  const [wideMarket, setWideMarket] = useState(true);
+  const bookmarkKey = `blind-replay.bookmarks.${id}.${run}.${part}.${asset ?? ""}`;
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(bookmarkKey) ?? "[]");
+      if (Array.isArray(saved))
+        setBookmarks(
+          saved
+            .filter(
+              (b) => Number.isInteger(b?.bar) && typeof b?.note === "string",
+            )
+            .slice(0, 200),
+        );
+    } catch {}
+  }, [bookmarkKey]);
   const [explanation, setExplanation] = useState<{
     source: string;
     facts: string[];
@@ -795,6 +850,19 @@ export function ReplayView({
     }
   }
   const replay = query.data;
+  useEffect(() => {
+    if (!inspectDate || !replay) return;
+    const match =
+      replay.players[0]?.events.findIndex(
+        (e) =>
+          replay.market[e.decision.decision_bar_index]?.date === inspectDate,
+      ) ?? -1;
+    if (match >= 0) {
+      setCursor(match);
+      cursorCallback.current?.(match);
+      setPlaying(false);
+    } else setError("The evaluated session is not recorded in this replay.");
+  }, [inspectDate, replay]);
   const model = replay?.players[0];
   const frame = replay ? playbackFrame(replay, requestedCursor) : undefined;
   const {
@@ -827,6 +895,100 @@ export function ReplayView({
     comparison.data.players[0]
   )
     players.push({ ...comparison.data.players[0], name: runLabel(opponent) });
+  const opponentEvents = !incompatibility
+    ? comparison.data?.players[0]?.events
+    : undefined;
+  const disagreement =
+    !!event &&
+    !!opponentEvents?.[index] &&
+    opponentEvents[index].decision.target !== event.decision.target;
+  const hideDecision = blindHuman && cursor < length && !guesses[index];
+  const revealedGuesses = Object.entries(guesses).flatMap(([k, guess]) => {
+    const e = model?.events[Number(k)],
+      bar = e?.decision.decision_bar_index;
+    if (bar === undefined || bar + 2 > marketEnd) return [];
+    const first = replay?.market[bar + 1]?.open,
+      second = replay?.market[bar + 2]?.open;
+    if (first === undefined || second === undefined) return [];
+    const label = second > first ? "long" : "flat";
+    return [{ human: guess === label, model: e?.decision.target === label }];
+  });
+  function saveBookmark(bar: number, note: string) {
+    const next = [
+      ...bookmarks.filter((b) => b.bar !== bar),
+      { bar, note },
+    ].slice(-200);
+    setBookmarks(next);
+    try {
+      localStorage.setItem(bookmarkKey, JSON.stringify(next));
+    } catch {}
+  }
+  function reportDownload() {
+    const data = players.map((p) => {
+      const snapshots = [
+        p.initial,
+        ...p.events
+          .filter((e) => e.portfolio.bar_index <= marketEnd)
+          .map((e) => e.portfolio),
+      ];
+      let peak = p.initial.equity,
+        drawdown = 0;
+      for (const s of snapshots) {
+        peak = Math.max(peak, s.equity);
+        drawdown = Math.max(drawdown, peak > 0 ? 1 - s.equity / peak : 0);
+      }
+      const last = snapshots.at(-1)!;
+      return {
+        name: p.name,
+        initial_equity: p.initial.equity,
+        revealed_equity: last.equity,
+        pnl: last.equity - p.initial.equity,
+        return_fraction: p.initial.equity
+          ? last.equity / p.initial.equity - 1
+          : null,
+        fees: last.total_fees,
+        drawdown,
+        events: snapshots.length - 1,
+      };
+    });
+    const a = document.createElement("a"),
+      url = URL.createObjectURL(
+        new Blob(
+          [
+            JSON.stringify(
+              {
+                asset: replay?.asset,
+                partition: part,
+                revealed_cursor: cursor,
+                note: "Revealed virtual broker results only; no future events included.",
+                players: data,
+                human_comparison: blindHuman
+                  ? {
+                      resolved: revealedGuesses.length,
+                      human_correct: revealedGuesses.filter((r) => r.human)
+                        .length,
+                      model_correct: revealedGuesses.filter((r) => r.model)
+                        .length,
+                    }
+                  : undefined,
+              },
+              null,
+              2,
+            ),
+          ],
+          { type: "application/json" },
+        ),
+      );
+    a.href = url;
+    a.download = "revealed-replay-analysis.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const nextDisagreement =
+    !!model?.events[cursor + 1] &&
+    !!opponentEvents?.[cursor + 1] &&
+    model.events[cursor + 1].decision.target !==
+      opponentEvents[cursor + 1].decision.target;
   useEffect(() => {
     if (!playing || cursor >= length) return;
     const timeout = setTimeout(() => {
@@ -834,10 +996,11 @@ export function ReplayView({
       setExplanation(undefined);
       setCursor(cursor + 1);
       cursorCallback.current?.(cursor + 1);
-      if (cursor + 1 >= length) setPlaying(false);
+      if (cursor + 1 >= length || (pauseDisagreement && nextDisagreement))
+        setPlaying(false);
     }, 1000 / speed);
     return () => clearTimeout(timeout);
-  }, [playing, cursor, length, speed]);
+  }, [playing, cursor, length, speed, pauseDisagreement, nextDisagreement]);
   async function explain(generate: boolean) {
     const request = ++explanationRequest.current;
     try {
@@ -938,13 +1101,33 @@ export function ReplayView({
             next-close portfolio is disclosed after execution.
           </p>
           <div className="bench-actions">
+            <label>
+              <input
+                type="checkbox"
+                checked={pauseDisagreement}
+                onChange={(e) => setPauseDisagreement(e.target.checked)}
+              />{" "}
+              Pause on model disagreement
+            </label>
             <button
               className="bench-button"
-              disabled={cursor === length}
+              disabled={cursor === length || blindHuman}
               onClick={() => setPlaying((v) => !v)}
             >
               {playing ? "Pause" : "Play"}
             </button>
+            <label>
+              <input
+                type="checkbox"
+                checked={blindHuman}
+                onChange={(e) => {
+                  setBlindHuman(e.target.checked);
+                  setPlaying(false);
+                  setExplanation(undefined);
+                }}
+              />{" "}
+              Human blind prediction mode
+            </label>
             <label>
               Speed{" "}
               <select
@@ -970,7 +1153,7 @@ export function ReplayView({
             </button>
             <button
               className="bench-button primary-action"
-              disabled={cursor === length}
+              disabled={cursor === length || hideDecision}
               onClick={() => seek(cursor + 1)}
             >
               Reveal next session
@@ -980,29 +1163,44 @@ export function ReplayView({
               <input
                 type="range"
                 min={0}
-                max={length}
+                max={blindHuman ? cursor : length}
                 value={cursor}
                 onChange={(e) => seek(Number(e.target.value))}
               />
             </label>
           </div>
           <div className="metric-strip">
-            {players.map((p) => {
-              const visible = p.events.filter(
-                (x) => x.portfolio.bar_index <= marketEnd,
-              );
-              return (
-                <div key={p.name}>
-                  <span>{labelText(p.name)}</span>
-                  <strong>
-                    {numberText(
-                      visible.at(-1)?.portfolio.equity ?? p.initial.equity,
-                      2,
-                    )}
-                  </strong>
-                </div>
-              );
-            })}
+            {players
+              .map((p) => ({
+                p,
+                latest:
+                  p.events
+                    .filter((e) => e.portfolio.bar_index <= marketEnd)
+                    .at(-1)?.portfolio ?? p.initial,
+              }))
+              .sort(
+                (a, b) =>
+                  b.latest.equity / b.p.initial.equity -
+                  a.latest.equity / a.p.initial.equity,
+              )
+              .map(({ p, latest }, rank) => {
+                return (
+                  <div key={p.name}>
+                    <span>
+                      #{rank + 1} · {labelText(p.name)}
+                    </span>
+                    <strong>{numberText(latest.equity, 2)}</strong>
+                    <small>
+                      {numberText(
+                        (latest.equity / p.initial.equity - 1) * 100,
+                        2,
+                      )}
+                      % · P&amp;L{" "}
+                      {numberText(latest.equity - p.initial.equity, 2)}
+                    </small>
+                  </div>
+                );
+              })}
           </div>
           {event && (
             <article className="finding-card replay-decision">
@@ -1015,30 +1213,121 @@ export function ReplayView({
                   ? "Last revealed decision"
                   : "Current blind decision"}
               </h3>
-              <div className="metric-strip">
-                <div>
-                  <span>Probability of positive executed return</span>
-                  <strong>
-                    {event.decision.probabilities?.long === undefined
-                      ? "—"
-                      : numberText(event.decision.probabilities.long * 100, 1) +
-                        "%"}
-                  </strong>
+              {hideDecision ? (
+                <p className="bench-notice">
+                  Choose your direction before revealing the registered AI
+                  prediction.
+                </p>
+              ) : (
+                <div className="metric-strip">
+                  <div>
+                    <span>Probability of positive executed return</span>
+                    <strong>
+                      {event.decision.probabilities?.long === undefined
+                        ? "—"
+                        : numberText(
+                            event.decision.probabilities.long * 100,
+                            1,
+                          ) + "%"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Policy target</span>
+                    <strong>{humanLabel(event.decision.target)}</strong>
+                  </div>
+                  <div>
+                    <span>Order action</span>
+                    <strong>{humanLabel(event.decision.action)}</strong>
+                  </div>
                 </div>
-                <div>
-                  <span>Policy target</span>
-                  <strong>{humanLabel(event.decision.target)}</strong>
-                </div>
-                <div>
-                  <span>Order action</span>
-                  <strong>{humanLabel(event.decision.action)}</strong>
-                </div>
-              </div>
+              )}
               <p className="muted">
                 {cursor === length
                   ? "The final execution outcome is revealed."
                   : "The next market session and its execution outcome remain hidden."}
               </p>
+              {!hideDecision && disagreement && (
+                <p className="bench-notice">
+                  Model disagreement: selected model{" "}
+                  {humanLabel(event.decision.target)} · opponent{" "}
+                  {humanLabel(opponentEvents![index].decision.target)}
+                </p>
+              )}
+              <div className="bench-actions">
+                <label>
+                  Annotation{" "}
+                  <input
+                    maxLength={150}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Note on this decision"
+                  />
+                </label>
+                <button
+                  className="bench-button"
+                  onClick={() => {
+                    saveBookmark(
+                      event.decision.decision_bar_index,
+                      note.trim() || "Bookmarked decision",
+                    );
+                    setNote("");
+                  }}
+                >
+                  Bookmark
+                </button>
+              </div>
+              {bookmarks.length > 0 && (
+                <div className="bench-actions">
+                  {bookmarks
+                    .filter((b) => b.bar <= marketEnd)
+                    .map((b) => (
+                      <button
+                        key={b.bar}
+                        className="bench-button"
+                        onClick={() =>
+                          seek(
+                            model.events.findIndex(
+                              (e) => e.decision.decision_bar_index === b.bar,
+                            ),
+                          )
+                        }
+                      >
+                        {replay.market[b.bar].date} · {b.note}
+                      </button>
+                    ))}
+                </div>
+              )}
+              {blindHuman && (
+                <>
+                  <p className="muted">
+                    Human predictions lock when submitted. Scoring waits until
+                    both execution-horizon opens have been revealed. This is a
+                    local educational exercise, not a protected benchmark.
+                  </p>
+                  <div className="bench-actions">
+                    {["long", "flat"].map((g) => (
+                      <button
+                        key={g}
+                        className="bench-button"
+                        aria-pressed={guesses[index] === g}
+                        disabled={cursor === length || !!guesses[index]}
+                        onClick={() =>
+                          setGuesses((v) => ({ ...v, [index]: g }))
+                        }
+                      >
+                        {g === "long"
+                          ? "Predict positive"
+                          : "Predict non-positive"}
+                      </button>
+                    ))}
+                  </div>
+                  <p>
+                    Resolved guesses: {revealedGuesses.length} · Human correct:{" "}
+                    {revealedGuesses.filter((r) => r.human).length} · AI
+                    correct: {revealedGuesses.filter((r) => r.model).length}
+                  </p>
+                </>
+              )}
               {cursor > 0 && (
                 <p>
                   Previous revealed execution:{" "}
@@ -1057,12 +1346,14 @@ export function ReplayView({
               <div className="bench-actions">
                 <button
                   className="bench-button"
+                  disabled={hideDecision}
                   onClick={() => void explain(false)}
                 >
                   Measured facts
                 </button>
                 <button
                   className="bench-button"
+                  disabled={hideDecision}
                   onClick={() => void explain(true)}
                 >
                   Explain with local LLM
@@ -1080,104 +1371,213 @@ export function ReplayView({
               )}
             </article>
           )}
-          <div className="lab-two">
-            {replay.market[0]?.open !== undefined ? (
-              <MarketCandles replay={replay} end={marketEnd} />
-            ) : (
-              <LinePlot
-                title="Revealed market prices and fills"
-                xLabel="Market bar"
-                yLabel="Index units"
-                series={[
-                  {
-                    name: "Adjusted close",
-                    points: replay.market
-                      .slice(0, marketEnd + 1)
-                      .map((b, x) => ({ x, y: b.close })),
-                  },
-                ]}
-                markers={model.events
-                  .filter(
-                    (e) =>
-                      e.execution &&
-                      e.execution.fill_bar !== null &&
-                      e.execution.fill_price !== null &&
-                      e.portfolio.bar_index <= marketEnd,
-                  )
-                  .map((e) => ({
-                    x: e.execution!.fill_bar!,
-                    y: e.execution!.fill_price!,
-                    label: e.decision.action,
-                    color: plotColors[0],
-                  }))}
-              />
-            )}
-            <LinePlot
-              title="Marked equity · same market clock"
-              xLabel="Market bar"
-              yLabel="Virtual currency"
-              series={players.map((p, i) => ({
-                name: p.name,
-                color: plotColors[i % plotColors.length],
-                points: [
-                  { x: p.initial.bar_index, y: p.initial.equity },
-                  ...p.events
-                    .filter((e) => e.portfolio.bar_index <= marketEnd)
+          <ChartSync>
+            <div className="bench-actions">
+              <button
+                className="bench-button"
+                aria-pressed={wideMarket}
+                onClick={() => setWideMarket((v) => !v)}
+              >
+                {wideMarket ? "Wide market chart" : "Side-by-side charts"}
+              </button>
+              <span className="muted">
+                Charts share the selected market window.
+              </span>
+            </div>
+            <div
+              className={`lab-two replay-chart-grid ${wideMarket ? "wide-market" : ""}`}
+            >
+              {replay.market[0]?.open !== undefined ? (
+                <MarketWorkbench
+                  replay={replay}
+                  end={marketEnd}
+                  hiddenBar={
+                    hideDecision
+                      ? event?.decision.decision_bar_index
+                      : undefined
+                  }
+                  annotations={[
+                    ...bookmarks,
+                    ...(opponentEvents ?? []).flatMap((e, i) =>
+                      model.events[i] &&
+                      i < cursor &&
+                      e.decision.target !== model.events[i].decision.target
+                        ? [
+                            {
+                              bar: e.decision.decision_bar_index,
+                              note: "Model disagreement",
+                            },
+                          ]
+                        : [],
+                    ),
+                  ]}
+                  onSelect={(bar) => {
+                    const nearest = model.events
+                      .slice(0, Math.min(cursor + 1, length))
+                      .reduce(
+                        (best, e, i) =>
+                          Math.abs(e.decision.decision_bar_index - bar) <
+                          Math.abs(
+                            model.events[best].decision.decision_bar_index -
+                              bar,
+                          )
+                            ? i
+                            : best,
+                        0,
+                      );
+                    if (length) seek(nearest);
+                  }}
+                />
+              ) : (
+                <LinePlot
+                  title="Revealed market prices and fills"
+                  sync
+                  xDomain={[0, Math.max(1, marketEnd)]}
+                  xLabel="Market bar"
+                  yLabel="Index units"
+                  series={[
+                    {
+                      name: "Adjusted close",
+                      points: replay.market
+                        .slice(0, marketEnd + 1)
+                        .map((b, x) => ({ x, y: b.close })),
+                    },
+                  ]}
+                  markers={model.events
+                    .filter(
+                      (e) =>
+                        e.execution &&
+                        e.execution.fill_bar !== null &&
+                        e.execution.fill_price !== null &&
+                        e.portfolio.bar_index <= marketEnd,
+                    )
                     .map((e) => ({
-                      x: e.portfolio.bar_index,
-                      y: e.portfolio.equity,
-                    })),
-                ],
-              }))}
-            />
-          </div>
-          <details className="product-details">
-            <summary>
-              Portfolio diagnostics · cumulative P&amp;L and drawdown
-            </summary>
-            <div className="lab-two">
+                      x: e.execution!.fill_bar!,
+                      y: e.execution!.fill_price!,
+                      label: e.decision.action,
+                      color: plotColors[0],
+                    }))}
+                />
+              )}
               <LinePlot
-                title="Cumulative P&L"
+                title="Marked equity · same market clock"
+                sync
+                xDomain={[0, Math.max(1, marketEnd)]}
+                formatX={(v) => replay.market[Math.round(v)]?.date ?? ""}
                 xLabel="Market bar"
                 yLabel="Virtual currency"
                 series={players.map((p, i) => ({
                   name: p.name,
                   color: plotColors[i % plotColors.length],
                   points: [
-                    { x: p.initial.bar_index, y: 0 },
+                    { x: p.initial.bar_index, y: p.initial.equity },
                     ...p.events
                       .filter((e) => e.portfolio.bar_index <= marketEnd)
                       .map((e) => ({
                         x: e.portfolio.bar_index,
-                        y: e.portfolio.equity - p.initial.equity,
+                        y: e.portfolio.equity,
                       })),
                   ],
                 }))}
               />
-              <LinePlot
-                title="Drawdown"
-                xLabel="Market bar"
-                yLabel="Fraction of peak"
-                series={players.map((p, i) => {
-                  let peak = p.initial.equity;
-                  return {
+            </div>
+            <details className="product-details">
+              <summary>
+                Portfolio diagnostics · cumulative P&amp;L and drawdown
+              </summary>
+              <div className="lab-two">
+                <LinePlot
+                  title="Cumulative P&L"
+                  sync
+                  xDomain={[0, Math.max(1, marketEnd)]}
+                  formatX={(v) => replay.market[Math.round(v)]?.date ?? ""}
+                  xLabel="Market bar"
+                  yLabel="Virtual currency"
+                  series={players.map((p, i) => ({
                     name: p.name,
                     color: plotColors[i % plotColors.length],
                     points: [
                       { x: p.initial.bar_index, y: 0 },
                       ...p.events
                         .filter((e) => e.portfolio.bar_index <= marketEnd)
-                        .map((e) => {
-                          peak = Math.max(peak, e.portfolio.equity);
-                          return {
-                            x: e.portfolio.bar_index,
-                            y: peak > 0 ? 1 - e.portfolio.equity / peak : 0,
-                          };
-                        }),
+                        .map((e) => ({
+                          x: e.portfolio.bar_index,
+                          y: e.portfolio.equity - p.initial.equity,
+                        })),
                     ],
-                  };
-                })}
-              />
+                  }))}
+                />
+                <LinePlot
+                  title="Drawdown"
+                  sync
+                  xDomain={[0, Math.max(1, marketEnd)]}
+                  formatX={(v) => replay.market[Math.round(v)]?.date ?? ""}
+                  xLabel="Market bar"
+                  yLabel="Fraction of peak"
+                  series={players.map((p, i) => {
+                    let peak = p.initial.equity;
+                    return {
+                      name: p.name,
+                      color: plotColors[i % plotColors.length],
+                      points: [
+                        { x: p.initial.bar_index, y: 0 },
+                        ...p.events
+                          .filter((e) => e.portfolio.bar_index <= marketEnd)
+                          .map((e) => {
+                            peak = Math.max(peak, e.portfolio.equity);
+                            return {
+                              x: e.portfolio.bar_index,
+                              y: peak > 0 ? 1 - e.portfolio.equity / peak : 0,
+                            };
+                          }),
+                      ],
+                    };
+                  })}
+                />
+              </div>
+            </details>
+          </ChartSync>
+          <button className="bench-button" onClick={reportDownload}>
+            Download revealed replay analysis
+          </button>
+          <details className="product-details">
+            <summary>Revealed execution and portfolio ledger</summary>
+            <div className="lab-table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Session</th>
+                    <th>Action</th>
+                    <th>Fill</th>
+                    <th>Fees</th>
+                    <th>Equity</th>
+                    <th>Cash</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {model.events
+                    .filter((e) => e.portfolio.bar_index <= marketEnd)
+                    .slice(-100)
+                    .reverse()
+                    .map((e) => (
+                      <tr key={e.decision.decision_bar_index}>
+                        <td>
+                          <button
+                            className="bench-button"
+                            onClick={() => seek(model.events.indexOf(e))}
+                          >
+                            {replay.market[e.decision.decision_bar_index]?.date}
+                          </button>
+                        </td>
+                        <td>{humanLabel(e.decision.action)}</td>
+                        <td>{numberText(e.execution?.fill_price)}</td>
+                        <td>{numberText(e.execution?.fee)}</td>
+                        <td>{numberText(e.portfolio.equity, 2)}</td>
+                        <td>{numberText(e.portfolio.cash, 2)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
             </div>
           </details>
           {cursor === length && (
