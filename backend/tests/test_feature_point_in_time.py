@@ -56,3 +56,18 @@ def test_changing_the_past_does_change_the_present():
     before = compute(BARS, ["returns_window_64"]).values.iloc[150]
     after = compute(altered, ["returns_window_64"]).values.iloc[150]
     assert not np.allclose(before, after)
+
+
+@pytest.mark.parametrize("feature_id", ALL_FEATURES)
+def test_values_do_not_depend_on_where_the_series_starts(feature_id):
+    """Dropping old bars changes nothing once the declared lookback is covered.
+
+    This catches a lookback declared too short and any running statistic that
+    accumulates from the first bar of the file (classic EMA, OBV).
+    """
+    start = 30
+    lookback = DEFAULT_REGISTRY.get(feature_id).lookback
+    full = compute(BARS, [feature_id]).values.iloc[start + lookback :]
+    late = compute(BARS.iloc[start:], [feature_id]).values.iloc[lookback:]
+    assert len(full) == len(late) > 0
+    np.testing.assert_allclose(late.to_numpy(), full.to_numpy(), rtol=1e-12, atol=1e-15)

@@ -28,6 +28,8 @@ from src.features.canonical import to_canonical
 from src.features.registry import FeatureRegistry
 from src.features.spec import FeatureSpec, MissingPolicy
 
+BOUND_TOLERANCE = 1e-9
+
 
 class FeatureEngineError(ValueError):
     """A feature broke its declared contract or the request is not allowed."""
@@ -42,6 +44,7 @@ class FeatureMatrix:
     columns: tuple[str, ...]
     lookback: int
     catalogue_fingerprint: str
+    warnings: tuple[str, ...] = ()
 
     @property
     def ready(self) -> pd.Series:
@@ -89,8 +92,10 @@ def _check_output(
         )
     low, high = spec.hard_bounds
     finite = after[np.isfinite(after)]
-    if (low is not None and (finite < low).any()) or (
-        high is not None and (finite > high).any()
+    # Bounds are mathematical (e.g. a ratio in [0, 1]); allow floating-point
+    # rounding of 1e-9 so an exact edge case such as close == high passes.
+    if (low is not None and (finite < low - BOUND_TOLERANCE).any()) or (
+        high is not None and (finite > high + BOUND_TOLERANCE).any()
     ):
         raise FeatureEngineError(
             f"{spec.id}: value outside hard bounds {spec.hard_bounds}"
@@ -133,6 +138,7 @@ def compute(
         columns=tuple(values.columns),
         lookback=registry.lookback(feature_ids),
         catalogue_fingerprint=registry.fingerprint(feature_ids),
+        warnings=tuple(registry.redundancies(feature_ids)),
     )
 
 

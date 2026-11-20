@@ -148,9 +148,18 @@ def test_default_catalogue_is_valid_and_keeps_the_baseline():
     assert (
         DEFAULT_REGISTRY.columns(["returns_window_64"])[0] == "returns_window_64.lag63"
     )
-    assert DEFAULT_REGISTRY.ids(FeatureGroup.RETURNS) == DEFAULT_REGISTRY.ids()
+    assert "returns_window_64" in DEFAULT_REGISTRY.ids(FeatureGroup.RETURNS)
     assert DEFAULT_REGISTRY.specs(FeatureGroup.CALENDAR) == []
-    assert "returns_window_64" in DEFAULT_REGISTRY and len(DEFAULT_REGISTRY) >= 12
+    assert "returns_window_64" in DEFAULT_REGISTRY and len(DEFAULT_REGISTRY) >= 70
+    for group in (
+        FeatureGroup.TREND,
+        FeatureGroup.VOLATILITY,
+        FeatureGroup.PRICE_STRUCTURE,
+        FeatureGroup.VOLUME,
+        FeatureGroup.STATISTICS,
+        FeatureGroup.REGIME,
+    ):
+        assert DEFAULT_REGISTRY.ids(group), group
 
 
 # ---------------------------------------------------------------- canonical

@@ -4,6 +4,13 @@ A ``FeatureSpec`` is metadata plus one deterministic NumPy/pandas function.
 The engine, not the feature, enforces the point-in-time rules: warm-up rows are
 masked, non-finite values after warm-up are refused and hard bounds are checked.
 
+Redundancy: ``redundant_with`` lists features that carry the same information
+as this one (a copy, a monotone transform, a coarser version or a subset); the
+pair should not be used together. ``determined_by`` lists features that,
+**all together**, determine this one exactly (an identity such as
+``intraday = log_return - overnight``). Both need a written reason. Profiles
+are checked against them; an explicit request still works, with a warning.
+
 Timing convention (daily bars): a feature value at row ``t`` is the value known
 at the close of bar ``t``. It may use bars ``t - lookback .. t`` and nothing
 after ``t``. ``lookback`` counts the *earlier* bars required, so a one-day
@@ -103,6 +110,9 @@ class FeatureSpec:
     units: str = "dimensionless"
     expected_range: tuple[float | None, float | None] = (None, None)
     hard_bounds: tuple[float | None, float | None] = (None, None)
+    redundant_with: tuple[str, ...] = ()
+    determined_by: tuple[str, ...] = ()
+    redundancy_reason: str = ""
 
     def __post_init__(self) -> None:
         if not _ID.match(self.id):
@@ -139,6 +149,22 @@ class FeatureSpec:
         ):
             if low is not None and high is not None and low >= high:
                 raise FeatureSpecError(f"{self.id}: {name} lower bound must be < upper")
+        for name, others in (
+            ("redundant_with", self.redundant_with),
+            ("determined_by", self.determined_by),
+        ):
+            if self.id in others or len(set(others)) != len(others):
+                raise FeatureSpecError(f"{self.id}: invalid {name} list")
+        if len(self.determined_by) == 1:
+            raise FeatureSpecError(
+                f"{self.id}: determined_by needs 2+ features; use redundant_with for one"
+            )
+        has_redundancy = bool(self.redundant_with or self.determined_by)
+        if has_redundancy != bool(self.redundancy_reason.strip()):
+            raise FeatureSpecError(
+                f"{self.id}: redundancy_reason is required with, and only with, "
+                "redundant_with or determined_by"
+            )
         if not callable(self.compute):
             raise FeatureSpecError(f"{self.id}: compute must be callable")
 
@@ -171,4 +197,7 @@ class FeatureSpec:
             "units": self.units,
             "expected_range": list(self.expected_range),
             "hard_bounds": list(self.hard_bounds),
+            "redundant_with": list(self.redundant_with),
+            "determined_by": list(self.determined_by),
+            "redundancy_reason": self.redundancy_reason,
         }

@@ -336,3 +336,4 @@ reviewed by a team member before merge.
 | Tranche | Files | Status |
 | --- | --- | --- |
 | T1 feature catalogue (2026-11-20) | `backend/src/features/` (all files), `backend/tests/feature_fixtures.py`, `backend/tests/test_feature_registry.py`, `backend/tests/test_feature_returns.py`, `backend/tests/test_feature_point_in_time.py`, `backend/tests/test_feature_baseline_parity.py`, `docs/features.md`; one README status row and link | Added; no existing code modified |
+| T2 feature groups B-G (2026-11-20) | `backend/src/features/groups/` (`_window.py`, `trend.py`, `volatility.py`, `structure.py`, `volume.py`, `statistics.py`, `regime.py`), `backend/src/features/profiles.py`, `backend/src/features/diagnostics.py`, redundancy fields in `spec.py`/`registry.py`/`engine.py`, `backend/tests/test_feature_groups.py`, `backend/tests/test_feature_profiles.py`, start-independence test; `docs/features.md` sections | Added; no pre-existing project code modified |

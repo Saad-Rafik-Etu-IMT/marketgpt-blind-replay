@@ -12,6 +12,7 @@ from collections.abc import Mapping
 import numpy as np
 import pandas as pd
 
+from src.features.groups._window import mean, rolling
 from src.features.spec import FeatureGroup, FeatureSpec, Visibility
 
 WINDOW_SIZES: tuple[int, ...] = (16, 32, 64, 128)
@@ -58,10 +59,8 @@ def _mean(horizon: int):
     name = f"mean_return_{horizon}"
 
     def compute(bars: pd.DataFrame, deps: Mapping[str, pd.DataFrame]) -> pd.DataFrame:
-        r = deps[LOG_RETURN][LOG_RETURN]
-        return pd.DataFrame(
-            {name: r.rolling(horizon, min_periods=horizon).mean()}, index=bars.index
-        )
+        r = deps[LOG_RETURN][LOG_RETURN].to_numpy()
+        return pd.DataFrame({name: rolling(r, horizon, mean)}, index=bars.index)
 
     return compute
 
@@ -76,6 +75,16 @@ def _overnight(bars: pd.DataFrame, _: Mapping[str, pd.DataFrame]) -> pd.DataFram
 def _intraday(bars: pd.DataFrame, _: Mapping[str, pd.DataFrame]) -> pd.DataFrame:
     values = np.log(bars["adj_close"].to_numpy() / bars["adj_open"].to_numpy())
     return pd.DataFrame({"intraday_return": values}, index=bars.index)
+
+
+def _window_redundancy(size: int) -> dict[str, object]:
+    larger = tuple(f"returns_window_{n}" for n in WINDOW_SIZES if n > size)
+    if not larger:
+        return {}
+    return {
+        "redundant_with": larger,
+        "redundancy_reason": f"its {size} columns are the last {size} columns of each larger window",
+    }
 
 
 def specs() -> list[FeatureSpec]:
@@ -115,6 +124,7 @@ def specs() -> list[FeatureSpec]:
                 ),
                 units=units,
                 expected_range=(-0.1, 0.1),
+                **_window_redundancy(size),
             )
         )
     for horizon in CUMULATIVE_HORIZONS:
@@ -144,6 +154,8 @@ def specs() -> list[FeatureSpec]:
                 lookback=horizon,
                 compute=_mean(horizon),
                 units=units,
+                redundant_with=(f"cum_return_{horizon}",),
+                redundancy_reason=f"mean_return_{horizon} = cum_return_{horizon} / {horizon} exactly",
             )
         )
     out += [
@@ -170,6 +182,8 @@ def specs() -> list[FeatureSpec]:
             compute=_intraday,
             visibility=Visibility.PRICE_RELATIVE,
             units=units,
+            determined_by=(LOG_RETURN, "overnight_return"),
+            redundancy_reason="intraday_return = log_return_1d - overnight_return exactly",
         ),
     ]
     return out

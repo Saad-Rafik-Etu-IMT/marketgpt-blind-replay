@@ -83,9 +83,32 @@ class FeatureRegistry:
         return order
 
     def validate(self) -> None:
-        """Check every registered feature resolves (dependencies exist, no cycles)."""
+        """Check every feature resolves and every redundancy reference exists."""
         for spec in self._specs.values():
             self.resolve([spec.id])
+            for other in (*spec.redundant_with, *spec.determined_by):
+                if other not in self._specs:
+                    raise FeatureRegistryError(
+                        f"{spec.id}: redundancy refers to unknown {other!r}"
+                    )
+
+    def redundancies(self, feature_ids: Sequence[str]) -> list[str]:
+        """Human-readable redundancy findings for a feature set (empty = clean)."""
+        chosen = set(feature_ids)
+        findings: list[str] = []
+        for feature_id in feature_ids:
+            spec = self.get(feature_id)
+            for other in spec.redundant_with:
+                if other in chosen:
+                    findings.append(
+                        f"{spec.id} is redundant with {other}: {spec.redundancy_reason}"
+                    )
+            if spec.determined_by and chosen.issuperset(spec.determined_by):
+                findings.append(
+                    f"{spec.id} is determined by {', '.join(spec.determined_by)}: "
+                    f"{spec.redundancy_reason}"
+                )
+        return findings
 
     def columns(self, feature_ids: Sequence[str]) -> list[str]:
         """Output columns of the requested features, in request order."""

@@ -162,7 +162,7 @@ Placeholder links below are evidence of reserved locations, **not implementation
 | F14 Research page | 2 | 🚧 first milestone | B | [Research interface](docs/research-interface.md): shell, validated artifact import and one connected synthetic workflow; full comparisons/evaluation deferred |
 | F15 LLM memory-leak experiment | 3 | 📋 planned; gated on Level 2 | A | [Evaluation placeholder](backend/src/eval/README.md) |
 | F16 Fact-grounded decision explanations | 2 | 📋 backend planned; initial UI implemented | B attribution; A LLM/validator | [Explanation interface](docs/research-interface.md); [AI placeholder](backend/src/ai/README.md), no live LLM, attribution or semantic validator; no local LLM runtime is configured yet ([DEC-4](docs/work-plan.md#blocking-decisions)) |
-| T1 Feature catalogue and point-in-time engine | Extension | ✅ T1 done (Group A returns only) | AI-assisted, authorized 2026-11-20 | [Feature package](backend/src/features), [catalogue doc](docs/features.md), [future-mutation tests](backend/tests/test_feature_point_in_time.py), [baseline parity](backend/tests/test_feature_baseline_parity.py); not yet used by any model or player |
+| T1-T2 Feature catalogue and point-in-time engine | Extension | ✅ T1-T2 done (Groups A to G, 70 features; H to J planned) | AI-assisted, authorized 2026-11-20 | [Feature package](backend/src/features), [catalogue doc](docs/features.md), [future-mutation tests](backend/tests/test_feature_point_in_time.py), [baseline parity](backend/tests/test_feature_baseline_parity.py), redundancy-checked profiles; not yet used by any model or player |
 
 ## Audit 2026-11-17: verified state and gaps
 
