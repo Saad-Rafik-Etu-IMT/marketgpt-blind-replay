@@ -326,3 +326,13 @@ Source verification after implementation:
 - Existing process on port 3000 was untouched; validation ports 3100/8100 released.
 
 Suggested commit message: `Extract minimal replay benchmark foundation`.
+
+## AI-assisted course work (after extraction)
+
+The teacher authorized AI assistance for the course work; the team recorded this
+on 2026-11-20. Files below were written by an AI assistant (Claude) and must be
+reviewed by a team member before merge.
+
+| Tranche | Files | Status |
+| --- | --- | --- |
+| T1 feature catalogue (2026-11-20) | `backend/src/features/` (all files), `backend/tests/feature_fixtures.py`, `backend/tests/test_feature_registry.py`, `backend/tests/test_feature_returns.py`, `backend/tests/test_feature_point_in_time.py`, `backend/tests/test_feature_baseline_parity.py`, `docs/features.md`; one README status row and link | Added; no existing code modified |
