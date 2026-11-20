@@ -69,6 +69,7 @@ class DatasetSpec(BaseModel):
     profile: str | None = None
     label: str = DEFAULT_LABEL
     target: str | None = None
+    min_horizon: int = Field(default=0, ge=0, le=260)
     representation: Representation = Representation.TABULAR
     sequence_length: int = Field(default=1, ge=1, le=256)
     context: ContextRule = ContextRule.OWN_PARTITION
@@ -159,7 +160,8 @@ def build_dataset(
     config = config if config is not None else load_split_config()
     label = get_label(spec.label)
     target = get_target(spec.target) if spec.target else None
-    horizon = target.horizon_bars if target else label.horizon
+    # min_horizon aligns datasets of different targets on the same rows (multi-task).
+    horizon = max(target.horizon_bars if target else label.horizon, spec.min_horizon)
     feature_ids = spec.feature_ids()
     columns = tuple(registry.columns(feature_ids))
     length = spec.sequence_length

@@ -68,6 +68,10 @@ Validation up-share: 53.9% and 54.5% respectively.
 
 Profiles have different warm-ups (64 to 271 bars), so each would otherwise keep different decision dates and a different inner cut-off. For an ablation, set `min_lookback` to the largest lookback of the compared profiles. A test checks that two profiles built this way have identical row indexes in every part.
 
+## Several targets on the same rows
+
+`min_horizon` raises the label horizon used for example selection. Datasets of different targets built with the same spec, the same `min_lookback` and `min_horizon` set to the longest horizon share their rows, inputs and scaler. Multi-task training needs this ([mlp.md](mlp.md#multi-task)).
+
 ## Input shapes
 
 | `representation` | X | Rows |
