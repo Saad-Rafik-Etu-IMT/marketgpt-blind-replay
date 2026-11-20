@@ -71,6 +71,8 @@ def replay_run(
         raise ValueError("Dataset changed since training")
     model = load_registered(folder / report["checkpoint"], expected_columns=ds.columns)
     asset = asset or runner.spec.primary_asset or next(iter(frames))
+    if asset not in frames:
+        raise ValueError("Selected asset is not in this campaign")
     p = ds.parts[part]
     rows = p.index[p.index["asset"] == asset].sort_values("bar")
     if rows.empty:

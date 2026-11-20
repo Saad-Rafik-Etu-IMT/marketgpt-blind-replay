@@ -164,11 +164,7 @@ def preview(
     except FeatureRegistryError as exc:
         raise HTTPException(404, "Unknown feature") from exc
     try:
-        frames = (
-            load_frames((SYNTHETIC,), data_dir())
-            if source in {SYNTHETIC, SYNTHETIC_SIGNAL}
-            else load_frames((source,), data_dir())
-        )
+        frames = load_frames((source,), data_dir())
     except SourceError as exc:
         raise HTTPException(404, "Unknown source") from exc
     frame = next(iter(frames.values()))
@@ -178,6 +174,10 @@ def preview(
         "source": source,
         "feature": spec.describe(),
         "dates": [d.date().isoformat() for d in values.index],
+        "adjusted_close": [
+            float(v) if np.isfinite(v) else None
+            for v in frame.loc[values.index, "adjusted_close"]
+        ],
         "columns": list(values.columns),
         "values": [
             [None if not np.isfinite(v) else float(v) for v in row]
@@ -472,6 +472,7 @@ def replay(
     part: str = Query(
         default="inner_validation", pattern="^(inner_validation|validation)$"
     ),
+    asset: str | None = Query(default=None, pattern=r"^[A-Za-z0-9_-]{1,40}$"),
 ) -> dict[str, Any]:
     folder = folder_of(experiment)
     if not RUN_KEY.fullmatch(key):
@@ -480,16 +481,20 @@ def replay(
         if _running():
             raise HTTPException(409, "Wait until the training worker finishes")
         try:
-            return replay_run(folder, data_dir(), key, part)
+            return replay_run(folder, data_dir(), key, part, asset)
         except (ValueError, FileNotFoundError) as exc:
             raise HTTPException(409, str(exc)) from exc
 
 
-def _recorded_replay(experiment: UUID, key: str, part: str) -> dict[str, Any]:
+def _recorded_replay(
+    experiment: UUID, key: str, part: str, asset: str | None = None
+) -> dict[str, Any]:
     folder = folder_of(experiment)
     if not RUN_KEY.fullmatch(key) or part not in {"inner_validation", "validation"}:
         raise HTTPException(404, "Unknown replay")
     paths = sorted((folder / "replays").glob(f"{key}__{part}__*.json"))
+    if asset is not None:
+        paths = [p for p in paths if p.name == f"{key}__{part}__{asset}.json"]
     if not paths:
         raise HTTPException(404, "Generate the replay first")
     return read_json(paths[0])
@@ -497,9 +502,12 @@ def _recorded_replay(experiment: UUID, key: str, part: str) -> dict[str, Any]:
 
 @router.get("/{experiment}/runs/{key}/replay")
 def recorded_replay(
-    experiment: UUID, key: str, part: str = "inner_validation"
+    experiment: UUID,
+    key: str,
+    part: str = "inner_validation",
+    asset: str | None = Query(default=None, pattern=r"^[A-Za-z0-9_-]{1,40}$"),
 ) -> dict[str, Any]:
-    return _recorded_replay(experiment, key, part)
+    return _recorded_replay(experiment, key, part, asset)
 
 
 @router.post("/{experiment}/runs/{key}/replay/explain")
@@ -510,8 +518,9 @@ def replay_explanation(
     part: str = "inner_validation",
     outcome: bool = False,
     generate: bool = False,
+    asset: str | None = Query(default=None, pattern=r"^[A-Za-z0-9_-]{1,40}$"),
 ) -> dict[str, Any]:
-    artifact = _recorded_replay(experiment, key, part)
+    artifact = _recorded_replay(experiment, key, part, asset)
     player = artifact["players"][0]
     if index >= len(player["events"]):
         raise HTTPException(404, "Unknown decision")

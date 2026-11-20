@@ -127,6 +127,15 @@ def test_registered_replay_uses_engine_and_exports(registered, monkeypatch):
     client = TestClient(create_app())
     prefix = f"/api/experiments/{folder.name}/runs/{key}"
     assert client.get(prefix + "/replay").json()["run"] == key
+    assert (
+        client.get(prefix + "/replay", params={"asset": report["asset"]}).json()[
+            "asset"
+        ]
+        == report["asset"]
+    )
+    assert (
+        client.get(prefix + "/replay", params={"asset": "missing"}).status_code == 404
+    )
     facts = client.post(prefix + "/replay/explain?index=0").json()["facts"]
     assert len(facts) == 3 and all("equity" not in f for f in facts)
     assert (
@@ -150,6 +159,16 @@ def test_queue_persists_and_dispatches_waiting_job(tmp_path, monkeypatch):
     )
     client = TestClient(create_app())
     correlation = client.get("/api/experiments/sources/synthetic/correlation").json()
+    noise = client.get(
+        "/api/experiments/sources/synthetic/preview",
+        params={"feature": "rsi_14", "last": 20},
+    ).json()
+    signal = client.get(
+        "/api/experiments/sources/synthetic_signal/preview",
+        params={"feature": "rsi_14", "last": 20},
+    ).json()
+    assert len(noise["adjusted_close"]) == len(noise["dates"]) == 20
+    assert noise["adjusted_close"] != signal["adjusted_close"]
     assert correlation["rows"] > 0
     assert len(correlation["matrix"]) == len(correlation["columns"])
     body = {"name": "queued", "epochs": 1}
