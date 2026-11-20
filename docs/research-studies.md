@@ -49,6 +49,35 @@ $env:MARKETGPT_GPU = 'user@host'            # or pass -Server every time
 
 A run creates the study folder locally, uploads the backend code, the study and its CSV (or every local ETF with `-Pooled`), and starts the worker under `nohup` so closing the connection does not stop it. Each run uploads the current code, so the server always trains with your local version. The default `-Device auto` keeps the run going on CPU when the GPUs are unusable. The local page shows the study as interrupted until you fetch it.
 
+## Three-bar long/short order research
+
+This command-line experiment is separate from the saved studies and the long/flat
+benchmark. From `backend/`, using a local daily CSV with `date`, `open`, `high`,
+`low`, `close`, and `adjusted_close`:
+
+```powershell
+python -m learning.mlp.order_replay .\data\yfinance\SPY.csv --fee-per-unit 0.005
+```
+
+- The MLP trains on simulated net P&L per unit, not direction classes. It scores
+  staying flat, opening long or short at market, and opening long or short at
+  a 1-, 3-, or 5-tick limit. It chooses flat when no entry scores above zero.
+- Each window starts flat. Markets enter at the next bar's open on the synthetic
+  bid or ask. Limits are placed below the visible close for buys or above it
+  for sells, on the tick grid. They fill at the limit (no gap improvement) only
+  when the synthetic bid or ask trades at least one full tick through the price.
+  Any position exits at bar three's close on the opposite side of the spread.
+  An unfilled limit expires with zero P&L.
+- Costs use `--tick-size` (default `0.01`), `--spread-bps` (default `1` for the
+  full spread), and `--fee-per-unit` per filled leg (default `0`). The simulator
+  does not model liquidity, queue priority, margin, borrow fees, or dividends.
+- Normalization is fit on training data and validation selects the epoch.
+  The report compares both policies on the same nonoverlapping holdout windows.
+  The baseline uses the same MLP scores but can only stay flat or trade at a
+  fixed 3-tick limit. The default 2017–2019 holdout is unseen by this model,
+  not the benchmark's official sealed test. `--split` accepts a custom split
+  JSON with `label_horizon: 3` and an explicit `test_end`.
+
 ## Historical validation example
 
 For the repository's configured historical sources, run `python -m pip install -e ".[data]"` and `python -m src.data.download` from `backend/` in the project environment. Reopen **Research studies** and choose the downloaded ticker.
