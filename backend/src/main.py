@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from src import __version__
 from src.api.errors import register_error_handlers
+from src.api.routes_experiments import router as experiments_router
 from src.api.routes_health import router as health_router
 from src.api.routes_jury import router as jury_router
 from src.api.routes_market import router as market_router
@@ -110,6 +111,7 @@ def create_app() -> FastAPI:
         return app
 
     app.include_router(studies_router, prefix="/api")
+    app.include_router(experiments_router, prefix="/api")
     app.include_router(health_router, prefix="/api")
     app.include_router(market_router, prefix="/api")
     app.include_router(replay_router, prefix="/api")

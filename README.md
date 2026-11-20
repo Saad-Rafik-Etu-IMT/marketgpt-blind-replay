@@ -166,6 +166,7 @@ Placeholder links below are evidence of reserved locations, **not implementation
 | T3 Dataset builder | Extension | ✅ T3 done | AI-assisted, authorized 2026-11-20 | [Dataset package](backend/src/datasets), [doc](docs/datasets.md), [tests incl. parity with the study pipeline](backend/tests/test_datasets.py); not yet called by the study worker (T6) |
 | T4 Prediction targets | Extension | ✅ T4 done | AI-assisted, authorized 2026-11-20 | [Target package](backend/src/targets), [doc](docs/targets.md), [tests incl. finite-difference gradients](backend/tests/test_targets.py); binary, three-class (volatility-scaled neutral band), expected return, volatility, quantiles, multi-horizon; 20-session targets are development-only with the current split; no model trained yet (T5) |
 | T5 Configurable MLP | Extension | ✅ T5 done | AI-assisted, authorized 2026-11-20 | [MLP package](backend/src/ai/mlp), [doc](docs/mlp.md), [tests incl. parity with W1 training and deep_mlp gradients](backend/tests/test_mlp.py); multi-head, AdamW/SGD, early stopping, safe checkpoints; first single-seed run: no preset beats the constant on inner-validation log loss; `learning/mlp` unchanged |
+| T6 Experiment orchestration | Extension | ✅ T6 done | AI-assisted, authorized 2026-11-20 | [Experiments package](backend/src/experiments), [API](backend/src/api/routes_experiments.py), [doc](docs/experiments.md), [tests](backend/tests/test_experiments.py); development/research/confirmation profiles, bounded grids, cost estimate, cancel/resume, validation-read ledger; `/api/studies` unchanged; no cockpit page yet (T9) |
 
 ## Audit 2026-11-17: verified state and gaps
 
@@ -949,6 +950,7 @@ npm exec --yes --package=node@20 -- node node_modules\playwright\cli.js test
 - [Dataset construction](docs/datasets.md)
 - [Prediction targets](docs/targets.md)
 - [Configurable MLP](docs/mlp.md)
+- [Experiments](docs/experiments.md)
 - [CI configuration](.github/workflows/ci.yml)
 
 📋 Planned documentation, not existing files: licensed data/split protocol,

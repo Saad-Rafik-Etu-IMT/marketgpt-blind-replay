@@ -14,6 +14,7 @@ gradients (possible negative transfer).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from itertools import combinations
 from typing import Any
@@ -140,7 +141,13 @@ def _all_finite(arrays) -> bool:
     return all(np.isfinite(a).all() for a in arrays)
 
 
-def train(model: MLP, data: TrainingData, config: TrainConfig) -> TrainResult:
+def train(
+    model: MLP,
+    data: TrainingData,
+    config: TrainConfig,
+    on_epoch: Callable[[dict[str, Any]], None] | None = None,
+) -> TrainResult:
+    """Train ``model`` in place; ``on_epoch(record)`` may raise to cancel (T6 orchestration)."""
     if len(data.x_train) == 0 or len(data.x_select) == 0:
         raise ValueError("training and selection sets must be non-empty")
     missing = {h.target for h in model.config.heads} - set(data.y_train)
@@ -214,6 +221,8 @@ def train(model: MLP, data: TrainingData, config: TrainConfig) -> TrainResult:
             ),
         }
         history.append(record)
+        if on_epoch is not None:
+            on_epoch(record)
         if not np.isfinite(record["select_loss"]):
             raise TrainingDivergedError(
                 f"non-finite selection loss at epoch {epoch}", history
