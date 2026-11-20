@@ -103,27 +103,14 @@ def resolve_device(name="cpu"):
     return device
 
 
-def fit_transformer(xt, yt, xs, ys, seed, variant, epochs, checkpoint, device="cpu"):
-    """Train on (xt, yt); select the checkpoint on (xs, ys), the inner-validation set."""
+def build_encoder(vocab_size, variant, device):
     import torch
     from torch import nn
-
-    dev = resolve_device(device)
-    torch.manual_seed(seed)
-    if dev.type == "cpu":
-        torch.set_num_threads(1)
-    tokenizer = NumericReturnTokenizer().fit(xt)
-    edges = np.asarray(tokenizer.bin_edges)
-
-    def tokens(x):
-        return torch.tensor(
-            np.searchsorted(edges, x, side="right"), dtype=torch.long, device=dev
-        )
 
     class Encoder(nn.Module):
         def __init__(self):
             super().__init__()
-            self.embedding = nn.Embedding(tokenizer.vocab_size, 16)
+            self.embedding = nn.Embedding(vocab_size, 16)
             self.position = nn.Parameter(torch.randn(64, 16) * 0.02)
             layer = nn.TransformerEncoderLayer(
                 16,
@@ -141,7 +128,64 @@ def fit_transformer(xt, yt, xs, ys, seed, variant, epochs, checkpoint, device="c
                 x = x + self.position
             return self.head(self.block(x).mean(dim=1))
 
-    model = Encoder().to(dev)
+    return Encoder().to(device)
+
+
+def load_predictor(checkpoint, device="cpu"):
+    """Reconstruct a registered encoder from its weights-only checkpoint."""
+    import torch
+
+    dev = resolve_device(device)
+    if dev.type == "cpu":
+        torch.set_num_threads(1)
+    saved = torch.load(checkpoint, weights_only=True, map_location="cpu")
+    edges = np.asarray(saved["edges"])
+    model = build_encoder(len(edges) + 1, saved["variant"], dev)
+    model.load_state_dict(saved["weights"])
+    model.eval()
+
+    def predict(windows):
+        with torch.no_grad():
+            ids = torch.tensor(
+                np.searchsorted(edges, windows, side="right"),
+                dtype=torch.long,
+                device=dev,
+            )
+            return model(ids).softmax(-1)[:, 1].cpu().numpy()
+
+    return predict
+
+
+def fit_transformer(
+    xt,
+    yt,
+    xs,
+    ys,
+    seed,
+    variant,
+    epochs,
+    checkpoint,
+    device="cpu",
+    on_epoch=None,
+    patience=None,
+):
+    """Train on (xt, yt); select the checkpoint on (xs, ys), the inner-validation set."""
+    import torch
+    from torch import nn
+
+    dev = resolve_device(device)
+    torch.manual_seed(seed)
+    if dev.type == "cpu":
+        torch.set_num_threads(1)
+    tokenizer = NumericReturnTokenizer().fit(xt)
+    edges = np.asarray(tokenizer.bin_edges)
+
+    def tokens(x):
+        return torch.tensor(
+            np.searchsorted(edges, x, side="right"), dtype=torch.long, device=dev
+        )
+
+    model = build_encoder(tokenizer.vocab_size, variant, dev)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=0.002, weight_decay=0 if variant == "no-decay" else 0.01
     )
@@ -152,6 +196,7 @@ def fit_transformer(xt, yt, xs, ys, seed, variant, epochs, checkpoint, device="c
     loss = nn.CrossEntropyLoss()
     best = float("inf")
     history = []
+    waited = 0
     for epoch in range(epochs):
         model.train()
         for indices in torch.randperm(len(x), device=dev).split(64):
@@ -169,12 +214,19 @@ def fit_transformer(xt, yt, xs, ys, seed, variant, epochs, checkpoint, device="c
             ) / len(x)
             validation = float(loss(model(valid), labels))
         history.append(dict(epoch=epoch + 1, train_loss=training, val_loss=validation))
+        if on_epoch is not None:
+            on_epoch(history[-1])
         if validation < best:
             best = validation
+            waited = 0
             state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
             torch.save(
                 dict(weights=state, edges=edges.tolist(), variant=variant), checkpoint
             )
+        else:
+            waited += 1
+            if patience is not None and waited >= patience:
+                break
     selected = min(range(len(history)), key=lambda i: history[i]["val_loss"])
     for i, entry in enumerate(history):
         entry["selected"] = i == selected

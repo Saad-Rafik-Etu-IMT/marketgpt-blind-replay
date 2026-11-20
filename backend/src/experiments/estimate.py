@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.ai.mlp import MLP, preset
-from src.experiments.spec import ExperimentSpec
+from src.ai.mlp import MLP
+from src.experiments.spec import TRANSFORMERS, ExperimentSpec
 from src.features import DEFAULT_REGISTRY, get_profile
 
 OPERATIONS_PER_SECOND = 3e9
@@ -30,10 +30,21 @@ def estimate(spec: ExperimentSpec, rows_per_source: dict[str, int]) -> dict[str,
         columns = len(
             DEFAULT_REGISTRY.columns(get_profile(run.feature_profile).features)
         )
-        architecture, _ = preset(run.preset, spec.targets)
-        params = MLP(columns, architecture).parameter_count
+        params = (
+            4000
+            if run.preset in TRANSFORMERS
+            else MLP(columns, spec.architecture(run.preset)).parameter_count
+        )
         epochs = spec.train_config(run.preset, run.seed).epochs
-        ops = 6.0 * rows * params * epochs * (1 + folds)
+        # Attention also evaluates pairwise token interactions.
+        ops = (
+            6.0
+            * rows
+            * params
+            * epochs
+            * (1 + folds)
+            * (16 if run.preset in TRANSFORMERS else 1)
+        )
         total_ops += ops
         runs.append(
             {"key": run.key, "inputs": columns, "parameters": params, "epochs": epochs}

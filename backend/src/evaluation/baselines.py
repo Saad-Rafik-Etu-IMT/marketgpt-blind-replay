@@ -114,6 +114,34 @@ def _ridge(train_part, select_part) -> tuple[np.ndarray, float, dict[str, Any]]:
     return best[0], best[1], {"alpha": best[3], "selection_mse": best[2]}
 
 
+def decision_stump(train_part, eval_part, classes: int):
+    """One deterministic split with Laplace-smoothed leaf frequencies.
+
+    Thresholds are training quantiles; no evaluation data chooses a split.
+    """
+    x, y = train_part.x, np.asarray(train_part.y, int)
+    counts = np.bincount(y, minlength=classes)
+    prior = (counts + 1) / (len(y) + classes)
+    best = (-float(counts @ np.log(prior)), None, None, prior, prior)
+    for col in range(x.shape[1]):
+        for threshold in np.unique(np.quantile(x[:, col], np.arange(0.1, 1, 0.1))):
+            left = x[:, col] <= threshold
+            if min(int(left.sum()), int((~left).sum())) < 10:
+                continue
+            a = np.bincount(y[left], minlength=classes)
+            b = counts - a
+            pa, pb = (a + 1) / (a.sum() + classes), (b + 1) / (b.sum() + classes)
+            loss = -float(a @ np.log(pa) + b @ np.log(pb))
+            if loss < best[0]:
+                best = (loss, col, float(threshold), pa, pb)
+    _, column, threshold, pa, pb = best
+    if column is None:
+        probabilities = np.tile(prior, (len(eval_part), 1))
+    else:
+        probabilities = np.where((eval_part.x[:, column] <= threshold)[:, None], pa, pb)
+    return np.log(probabilities), {"column": column, "threshold": threshold, "depth": 1}
+
+
 def baseline_outputs(
     target: Target, state: dict[str, Any], train_part, select_part, eval_part
 ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
@@ -130,6 +158,9 @@ def baseline_outputs(
             target, train_part, select_part, state
         )
         outputs["logistic_regression"] = model.predict(eval_part.x)[target.id]
+        outputs["decision_stump"], info["decision_stump"] = decision_stump(
+            train_part, eval_part, target.output_dim
+        )
     elif target.kind is TargetKind.REGRESSION:
         k = target.output_dim
         outputs["train_mean"] = np.zeros((n, k))

@@ -275,6 +275,22 @@ class DirectionBinary(_Classifier):
         return (np.asarray(raw)[:, 0] > 0).astype(np.int64)
 
 
+class CostAwareBinary(DirectionBinary):
+    """Fixed 1 bp hypothetical round-trip hurdle; not a realized broker result."""
+
+    output_names = ("below_cost", "above_cost")
+
+    def __init__(self):
+        super().__init__("direction_above_1bp_v1", "executed")
+        self.interpretation = (
+            "Will the next executed return exceed a fixed one-basis-point hurdle?"
+        )
+        self.definition = "above_cost = log(adj_open[t+2] / adj_open[t+1]) > 0.0001"
+
+    def encode(self, raw, sigma, state):
+        return (np.asarray(raw)[:, 0] > 0.0001).astype(np.int64)
+
+
 class DirectionThreeClass(_Classifier):
     output_names = ("down", "neutral", "up")
     needs_sigma = True
@@ -567,6 +583,7 @@ TARGETS: dict[str, Target] = {
     for t in (
         DirectionBinary("direction_binary_v1", "executed"),
         DirectionBinary("direction_binary_close_v1", "close"),
+        CostAwareBinary(),
         DirectionThreeClass(),
         ExpectedReturn((1,)),
         ExpectedReturn((5,)),

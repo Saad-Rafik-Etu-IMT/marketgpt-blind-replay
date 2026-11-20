@@ -31,11 +31,13 @@ import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import numpy as np
+import pandas as pd
 
-from src.ai.mlp import MLP, TrainingData, TrainingDivergedError, preset, save, train
+from src.ai.mlp import MLP, TrainingData, TrainingDivergedError, save, train
 from src.data.split import SplitConfig, load_split_config
 from src.datasets import (
     Dataset,
@@ -45,9 +47,13 @@ from src.datasets import (
     walk_forward_cutoffs,
     write_manifest,
 )
+from src.datasets.folds import inner_cutoff
+from src.datasets.manifest import frame_fingerprint, read_manifest
+from src.experiments.models import register_transformer, train_reference
 from src.experiments.sources import load_frames
-from src.experiments.spec import ExperimentSpec, Run
+from src.experiments.spec import TRANSFORMERS, ExperimentSpec, Run
 from src.features import DEFAULT_REGISTRY, get_profile
+from src.features.canonical import to_canonical
 from src.services.study_artifacts import read_json, write_json
 from src.targets import get_target
 
@@ -93,12 +99,36 @@ def common_horizon(spec: ExperimentSpec) -> int:
     return max(get_target(t).horizon_bars for t in spec.targets)
 
 
+def chronological_masks(index, start, end, horizon, embargo, lookback, context):
+    """Purged date boundaries shared across assets, even if an asset has no evaluation rows."""
+    fit, evaluate = np.zeros(len(index), bool), np.zeros(len(index), bool)
+    for _, rows in index.groupby("asset"):
+        bars = rows["bar"].to_numpy()
+        dates = rows["date"].to_numpy()
+        in_block = dates >= start
+        first = bars[in_block].min() if in_block.any() else np.inf
+        after = dates >= end if end is not None else np.zeros(len(rows), bool)
+        stop = bars[after].min() if after.any() else np.inf
+        positions = rows.index.to_numpy()
+        fit[positions] = (dates < start) & (bars + horizon < first - embargo)
+        begins = bars - lookback if context.value == "own_partition" else bars
+        evaluate[positions] = in_block & (begins >= first) & (bars + horizon < stop)
+    return fit, evaluate
+
+
 class Runner:
     def __init__(
         self, folder: Path, data_dir: Path, split: SplitConfig | None = None
     ) -> None:
         self.folder, self.data_dir = folder, data_dir
-        self.split = split if split is not None else load_split_config()
+        frozen = folder / "data_lock.json"
+        self.split = (
+            split
+            if split is not None
+            else SplitConfig.model_validate(read_json(frozen)["split"])
+            if frozen.is_file()
+            else load_split_config()
+        )
         stored = read_json(folder / "spec.json")
         self.spec = ExperimentSpec.model_validate(stored["spec"])
         self.fingerprint = stored["fingerprint"]
@@ -122,6 +152,27 @@ class Runner:
             raise TimeBudgetError(f"time budget of {limit} minutes exceeded")
 
     # ------------------------------------------------------------ datasets
+    def verify_data(self, frames) -> None:
+        """Lock development data and split across retries; only development rows are hashed."""
+        lock_path = self.folder / "data_lock.json"
+        data = {}
+        for name, frame in sorted(frames.items()):
+            dates = pd.to_datetime(
+                frame["date"] if "date" in frame.columns else frame.index
+            )
+            visible = frame.loc[
+                np.asarray(dates <= pd.Timestamp(self.split.validation_end))
+            ]
+            data[name] = frame_fingerprint(to_canonical(visible))
+        record = {"split": self.split.model_dump(mode="json"), "data": data}
+        if lock_path.is_file():
+            if read_json(lock_path) != record:
+                raise ValueError(
+                    "Development data or split changed; create a new experiment"
+                )
+        else:
+            write_json(lock_path, record)
+
     def _datasets(self, frames, feature_profile: str) -> list[Dataset]:
         common = dict(
             profile=feature_profile,
@@ -136,10 +187,14 @@ class Runner:
             for t in self.spec.targets
         ]
         for ds in datasets:
-            write_manifest(
-                ds.manifest,
-                self.folder / "datasets" / f"{feature_profile}__{ds.target.id}.json",
-            )
+            path = self.folder / "datasets" / f"{feature_profile}__{ds.target.id}.json"
+            if path.is_file():
+                if read_manifest(path)["dataset_fingerprint"] != ds.fingerprint:
+                    raise ValueError(
+                        "Dataset changed since the original run; create a new experiment"
+                    )
+            else:
+                write_manifest(ds.manifest, path)
         return datasets
 
     # ------------------------------------------------------------- one run
@@ -155,58 +210,88 @@ class Runner:
             )
         return report
 
-    def _walk_forward(
-        self, run: Run, datasets: list[Dataset], epochs: int
-    ) -> list[dict[str, Any]]:
+    def _walk_forward(self, run: Run, datasets: list[Dataset]) -> list[dict[str, Any]]:
         folds = self.spec.experiment_profile.walk_forward_folds
         train_part = datasets[0].parts["train"]
         index = train_part.index
         cutoffs = walk_forward_cutoffs(list(index["date"]), folds, 0.4)
         horizon, embargo = common_horizon(self.spec), self.split.embargo
-        architecture, _ = preset(run.preset, self.spec.targets)
-        config = self.spec.train_config(run.preset, run.seed).model_copy(
-            update={"epochs": max(1, epochs), "patience": None}
-        )
+        # The globally retained epoch depends on future training dates.
+        # Every outer fold must select its own epoch on a nested earlier split.
+        config = self.spec.train_config(run.preset, run.seed)
         reports = []
         for k in range(folds):
             start, end = cutoffs[k], (None if k == folds - 1 else cutoffs[k + 1])
-            fit_rows, eval_rows = np.zeros(len(index), bool), np.zeros(len(index), bool)
-            for _asset, rows in index.groupby("asset"):
-                bars = rows["bar"].to_numpy()
-                dates = rows["date"].to_numpy()
-                in_block = dates >= start
-                first = bars[in_block].min() if in_block.any() else np.inf
-                after = dates >= end if end is not None else np.zeros(len(rows), bool)
-                stop = bars[after].min() if after.any() else np.inf
-                positions = rows.index.to_numpy()
-                fit_rows[positions] = bars + horizon < first - embargo
-                eval_rows[positions] = in_block & (bars + horizon < stop)
+            lookback = datasets[0].lookback
+            outer_train, eval_rows = chronological_masks(
+                index, start, end, horizon, embargo, lookback, self.spec.context
+            )
+            nested_cutoff = inner_cutoff(list(index.loc[outer_train, "date"]))
+            nested_fit, nested_select = chronological_masks(
+                index,
+                nested_cutoff,
+                start,
+                horizon,
+                embargo,
+                lookback,
+                self.spec.context,
+            )
+            fit_rows, select_rows = (
+                outer_train & nested_fit,
+                outer_train & nested_select,
+            )
+            if not fit_rows.any() or not select_rows.any() or not eval_rows.any():
+                raise ValueError(
+                    "Insufficient rows for a purged nested walk-forward fold"
+                )
             scaler = fit_scaler(
                 self.spec.scaler, train_part.x_raw[fit_rows], datasets[0].columns
             )
+            states, encoded = {}, {}
+            for ds in datasets:
+                p = ds.parts["train"]
+                t = ds.target
+                states[t.id] = t.fit(p.targets[fit_rows], p.sigma[fit_rows])
+                encoded[t.id] = t.encode(p.targets, p.sigma, states[t.id])
             data = TrainingData(
                 x_train=scaler.transform(train_part.x_raw[fit_rows]),
-                y_train={
-                    ds.target.id: ds.parts["train"].y[fit_rows] for ds in datasets
-                },
-                x_select=scaler.transform(train_part.x_raw[eval_rows]),
-                y_select={
-                    ds.target.id: ds.parts["train"].y[eval_rows] for ds in datasets
-                },
-                target_states={ds.target.id: ds.target_state or {} for ds in datasets},
+                y_train={key: y[fit_rows] for key, y in encoded.items()},
+                x_select=scaler.transform(train_part.x_raw[select_rows]),
+                y_select={key: y[select_rows] for key, y in encoded.items()},
+                target_states=states,
             )
-            model = MLP(data.x_train.shape[1], architecture, seed=run.seed)
-            train(model, data, config, on_epoch=lambda _record: self._check())
-            outputs = model.predict(data.x_select)
+            if run.preset in TRANSFORMERS:
+                with TemporaryDirectory() as folder:
+                    result = train_reference(
+                        data,
+                        config,
+                        run.preset,
+                        Path(folder) / "fold.pt",
+                        self.spec.device,
+                        lambda _record: self._check(),
+                    )
+                    outputs = result.model.predict(
+                        scaler.transform(train_part.x_raw[eval_rows])
+                    )
+            else:
+                model = MLP(
+                    data.x_train.shape[1],
+                    self.spec.architecture(run.preset),
+                    seed=run.seed,
+                )
+                result = train(
+                    model, data, config, on_epoch=lambda _record: self._check()
+                )
+                outputs = model.predict(scaler.transform(train_part.x_raw[eval_rows]))
             metrics = {}
             for ds in datasets:
                 p = ds.parts["train"]
                 metrics[ds.target.id] = ds.target.evaluate(
                     outputs[ds.target.id],
-                    p.y[eval_rows],
+                    encoded[ds.target.id][eval_rows],
                     p.targets[eval_rows],
                     p.sigma[eval_rows],
-                    ds.target_state or {},
+                    states[ds.target.id],
                 )
             reports.append(
                 {
@@ -214,6 +299,9 @@ class Runner:
                     "start": start.isoformat(),
                     "end": None if end is None else end.isoformat(),
                     "train_rows": int(fit_rows.sum()),
+                    "selection_rows": int(select_rows.sum()),
+                    "selection_start": nested_cutoff.isoformat(),
+                    "best_epoch": result.best_epoch,
                     "evaluated_rows": int(eval_rows.sum()),
                     "metrics": metrics,
                 }
@@ -222,10 +310,8 @@ class Runner:
 
     def _run(self, run: Run, datasets: list[Dataset]) -> dict[str, Any]:
         began = time.monotonic()
-        architecture, _ = preset(run.preset, self.spec.targets)
         config = self.spec.train_config(run.preset, run.seed)
         data = TrainingData.from_datasets(datasets)
-        model = MLP(data.x_train.shape[1], architecture, seed=run.seed)
 
         def progress(record: dict[str, Any]) -> None:
             self._check()
@@ -234,10 +320,43 @@ class Runner:
                     "run": run.key,
                     "epoch": record["epoch"],
                     "epochs": config.epochs,
+                    "train_loss": record["train_loss"],
+                    "select_loss": record["select_loss"],
                 }
             )
+            trace = self.folder / "progress" / f"{run.key}.json"
+            trace.parent.mkdir(exist_ok=True)
+            previous = (
+                read_json(trace)["history"]
+                if trace.is_file() and record["epoch"] > 1
+                else []
+            )
+            write_json(trace, {"history": [*previous, _finite(record)]})
 
-        result = train(model, data, config, on_epoch=progress)
+        checkpoint = self.folder / "checkpoints" / run.key
+        if run.preset in TRANSFORMERS:
+            result = train_reference(
+                data,
+                config,
+                run.preset,
+                checkpoint.with_suffix(".pt"),
+                self.spec.device,
+                progress,
+            )
+            model = result.model
+            architecture = {
+                "encoder": "reference",
+                "variant": TRANSFORMERS[run.preset],
+                "embedding": 16,
+                "heads": 2,
+            }
+            device = result.device
+        else:
+            mlp_architecture = self.spec.architecture(run.preset)
+            model = MLP(data.x_train.shape[1], mlp_architecture, seed=run.seed)
+            result = train(model, data, config, on_epoch=progress)
+            architecture = mlp_architecture.model_dump(mode="json")
+            device = "cpu"
         report: dict[str, Any] = {
             "key": run.key,
             "state": "complete",
@@ -248,6 +367,9 @@ class Runner:
             "targets": list(self.spec.targets),
             "inputs": model.n_in,
             "parameter_count": model.parameter_count,
+            "architecture": architecture,
+            "training": config.model_dump(mode="json"),
+            "device": device,
             "best_epoch": result.best_epoch,
             "epochs_run": len(result.history),
             "stopped_early": result.stopped_early,
@@ -260,20 +382,20 @@ class Runner:
             report["validation"] = self._evaluate(model, datasets, "validation")
             self._record_validation_read(run, datasets)
         if self.spec.experiment_profile.walk_forward_folds:
-            report["walk_forward"] = self._walk_forward(
-                run, datasets, result.best_epoch
-            )
+            report["walk_forward"] = self._walk_forward(run, datasets)
         # Separate folder: ``checkpoints/<key>.json`` must never collide with ``runs/<key>.json``.
-        checkpoint = self.folder / "checkpoints" / run.key
-        save(
-            checkpoint,
-            model,
-            config,
-            dataset=datasets[0],
-            target_states={ds.target.id: ds.target_state or {} for ds in datasets},
-            history=result.history,
-            best_epoch=result.best_epoch,
-        )
+        if run.preset in TRANSFORMERS:
+            register_transformer(checkpoint, result, config, datasets, run.preset)
+        else:
+            save(
+                checkpoint,
+                model,
+                config,
+                dataset=datasets[0],
+                target_states={ds.target.id: ds.target_state or {} for ds in datasets},
+                history=result.history,
+                best_epoch=result.best_epoch,
+            )
         report["checkpoint"] = f"checkpoints/{run.key}"
         report["seconds"] = round(time.monotonic() - began, 2)
         return report
@@ -325,6 +447,7 @@ class Runner:
         self._write_status()
         try:
             frames = load_frames(self.spec.sources, self.data_dir)
+            self.verify_data(frames)
             cache: dict[str, list[Dataset]] = {}
             for run in runs:
                 self._check()
@@ -342,7 +465,15 @@ class Runner:
                 )
                 try:
                     report = self._run(run, cache[run.feature_profile])
-                except (TrainingDivergedError, ValueError, ArithmeticError) as exc:
+                except (CancelledError, TimeBudgetError):
+                    raise
+                except (
+                    TrainingDivergedError,
+                    ValueError,
+                    ArithmeticError,
+                    ImportError,
+                    RuntimeError,
+                ) as exc:
                     report = {
                         "key": run.key,
                         "state": "failed",

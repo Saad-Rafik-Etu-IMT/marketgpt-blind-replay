@@ -157,7 +157,7 @@ def test_classification_baselines():
     target = get_target("direction_binary_v1")
     state, (tr, se, ev) = _parts(target)
     outputs, info = baseline_outputs(target, state, tr, se, ev)
-    assert set(outputs) == {"class_frequency", "logistic_regression"}
+    assert set(outputs) == {"class_frequency", "logistic_regression", "decision_stump"}
     shares = state["train_class_shares"]
     assert row_losses(
         target, outputs["class_frequency"], ev.y, ev.targets, state
@@ -311,7 +311,11 @@ def test_evaluate_experiment_end_to_end(finished):
     report = evaluate_experiment(folder, data, n_boot=200)
     assert len(report["results"]) == 6
     first = next(r for r in report["results"] if r["target"] == "direction_binary_v1")
-    assert set(first["baselines"]) == {"class_frequency", "logistic_regression"}
+    assert set(first["baselines"]) == {
+        "class_frequency",
+        "logistic_regression",
+        "decision_stump",
+    }
     for baseline in first["baselines"].values():
         assert baseline["comparison"]["verdict"] in {
             "better",

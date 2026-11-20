@@ -27,12 +27,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from src.ai.mlp import load
 from src.data.split import SplitConfig
 from src.datasets import Dataset
 from src.eval.execution import load_benchmark_profile
 from src.evaluation.baselines import _quantile_outputs, baseline_outputs
 from src.evaluation.stats import drift, loss_name, paired_difference, row_losses
+from src.experiments.models import load_registered
 from src.experiments.runner import Runner, _finite
 from src.experiments.sources import load_frames
 from src.features import DEFAULT_REGISTRY, compute, get_profile
@@ -43,6 +43,29 @@ from src.targets import metrics as m
 PARTS = ("inner_validation", "validation")
 REFERENCE_PROFILE = "returns_only_v1"
 FINISHED = {"complete", "complete_with_failures"}
+
+
+def classification_curves(scores, labels):
+    """Tie-aware ROC and precision-recall points for a binary target."""
+    y = np.asarray(labels, dtype=bool)
+    positives, negatives = int(y.sum()), int((~y).sum())
+    if not positives or not negatives:
+        return {"roc": [], "precision_recall": []}
+    order = np.argsort(-scores, kind="stable")
+    ranked, labels = np.asarray(scores)[order], y[order]
+    ends = np.r_[np.flatnonzero(ranked[:-1] != ranked[1:]), len(ranked) - 1]
+    tp, fp = np.cumsum(labels)[ends], np.cumsum(~labels)[ends]
+    indexes = np.unique(np.linspace(0, len(ends) - 1, min(500, len(ends))).astype(int))
+    return {
+        "roc": [
+            [0.0, 0.0],
+            *np.column_stack([fp / negatives, tp / positives])[indexes].tolist(),
+        ],
+        "precision_recall": [
+            [0.0, 1.0],
+            *np.column_stack([tp / positives, tp / (tp + fp)])[indexes].tolist(),
+        ],
+    }
 
 
 class EvaluationError(ValueError):
@@ -211,6 +234,10 @@ def evaluate_experiment(
     if not reports:
         raise EvaluationError("no completed run to evaluate")
     frames = load_frames(spec.sources, data_dir)
+    try:
+        runner.verify_data(frames)
+    except ValueError as exc:
+        raise EvaluationError(str(exc)) from exc
     cost = load_benchmark_profile().spread_bps / 2 / 10000
     result: dict[str, Any] = {
         "experiment": folder.name,
@@ -232,7 +259,10 @@ def evaluate_experiment(
     losses: dict[tuple[str, str, str], dict[str, Any]] = {}
     regimes = None
     for fp in spec.feature_profiles:
-        datasets = runner._datasets(frames, fp)  # noqa: SLF001
+        try:
+            datasets = runner._datasets(frames, fp)  # noqa: SLF001
+        except ValueError as exc:
+            raise EvaluationError(str(exc)) from exc
         by_target = {ds.target.id: ds for ds in datasets}
         if regimes is None:
             regimes = regime_labels(datasets, part, frames, runner.split)
@@ -266,7 +296,7 @@ def evaluate_experiment(
                 ds.parts["inner_validation"],
                 ds.parts[part],
             )
-        for ps in spec.presets:
+        for ps in spec.candidates():
             runs = [
                 r
                 for r in reports.values()
@@ -281,7 +311,9 @@ def evaluate_experiment(
                             f"{r['key']}: dataset changed since training"
                         )
             models = [
-                load(folder / r["checkpoint"], expected_columns=first.columns).model
+                load_registered(
+                    folder / r["checkpoint"], expected_columns=first.columns
+                ).model
                 for r in runs
             ]
             seeds = [r["seed"] for r in runs]
@@ -367,6 +399,8 @@ def evaluate_experiment(
                             probs[:, -1], p.y == target.output_dim - 1
                         ),
                     }
+                    if target.output_dim == 2:
+                        entry["curves"] = classification_curves(probs[:, 1], p.y)
                 if t == spec.targets[0]:
                     entry["importance"] = importance(
                         target, models, ds, part, state, get_profile(fp).features
@@ -376,6 +410,18 @@ def evaluate_experiment(
                     entry["trading"] = trading_simulation(
                         softmax(z)[:, 1], p, {"logistic_regression": logistic}, cost
                     )
+                    entry["cost_sensitivity"] = [
+                        {
+                            "cost_bps_per_change": rate * 10000,
+                            **trading_simulation(
+                                softmax(z)[:, 1],
+                                p,
+                                {"logistic_regression": logistic},
+                                rate,
+                            ),
+                        }
+                        for rate in (0.0, 0.5e-4, 2e-4, 5e-4)
+                    ]
                 losses[(fp, ps, t)] = {
                     "rows": model_rows,
                     "seeds": dict(zip(seeds, seed_rows, strict=True)),
