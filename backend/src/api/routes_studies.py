@@ -296,7 +296,15 @@ def evaluation(study: UUID, key: str):
     r.pop("returns")
     r.pop("trace", None)
     r["samples"] = [
-        dict(index=i, p=c["p"], up=c["next"] > 0, period=c["period"])
+        dict(
+            index=i,
+            p=c["p"],
+            up=c["next"] > 0,
+            period=c["period"],
+            bestDecision=c.get("bestDecision"),
+            forward3dReturn=c.get("forward3dReturn"),
+            oracleReason=c.get("oracleReason"),
+        )
         for i, c in enumerate(cases)
     ]
     return r
@@ -329,6 +337,19 @@ def save_human_evaluation(study: UUID, key: str, responses: Responses):
     return artifact
 
 
+@router.get("/{study}/best-decisions")
+def best_decisions(study: UUID):
+    folder = root() / str(study)
+    path = folder / "best_decisions.json"
+    if path.is_file():
+        return read(path)
+    for run_path in sorted(folder.glob("*-*.json")):
+        data = read(run_path)
+        if "bestDecisions" in data:
+            return data["bestDecisions"]
+    raise HTTPException(404, "Best decisions log unavailable")
+
+
 def observe(r, i):
     if not 0 <= i < len(r["cases"]):
         raise HTTPException(404, "Unknown case")
@@ -346,7 +367,16 @@ def inspect(study: UUID, key: str, index: int):
     r = report(study, key)
     observation = observe(r, index)
     case = r["cases"][index]
-    return dict(**observation, outcome=dict(next=case["next"], actions=case["actions"]))
+    return dict(
+        **observation,
+        outcome=dict(
+            next=case["next"],
+            actions=case["actions"],
+            bestDecision=case.get("bestDecision"),
+            forward3dReturn=case.get("forward3dReturn"),
+            oracleReason=case.get("oracleReason"),
+        ),
+    )
 
 
 @router.post("/{study}/{key}/challenge")

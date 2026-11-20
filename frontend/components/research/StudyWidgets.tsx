@@ -11,7 +11,11 @@ type Observation = {
   occlusion: number[];
   p: number;
   token?: string;
-  outcome?: Pick<Outcome, "next" | "actions">;
+  outcome?: Pick<Outcome, "next" | "actions"> & {
+    bestDecision?: string;
+    forward3dReturn?: number;
+    oracleReason?: string;
+  };
 };
 type Outcome = {
   index: number;
@@ -146,13 +150,25 @@ export function Decision({
           ) : (
             <>
               {obs.outcome && (
-                <p>
-                  Observed next return {pct(Math.expm1(obs.outcome.next))} ·
-                  model prediction{" "}
-                  {obs.p >= 0.5 === obs.outcome.next > 0
-                    ? "correct"
-                    : "incorrect"}
-                </p>
+                <>
+                  <p>
+                    Observed next return {pct(Math.expm1(obs.outcome.next))} ·
+                    model prediction{" "}
+                    {obs.p >= 0.5 === obs.outcome.next > 0
+                      ? "correct"
+                      : "incorrect"}
+                  </p>
+                  {obs.outcome.bestDecision && (
+                    <p>
+                      Logged best decision:{" "}
+                      <strong>{obs.outcome.bestDecision}</strong>
+                      {typeof obs.outcome.forward3dReturn === "number" &&
+                        ` · 3d forward return ${pct(Math.expm1(obs.outcome.forward3dReturn))}`}
+                      {obs.outcome.oracleReason &&
+                        ` · ${obs.outcome.oracleReason}`}
+                    </p>
+                  )}
+                </>
               )}
               <h3>Occlusion sensitivity</h3>
               <p>

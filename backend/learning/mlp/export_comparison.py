@@ -8,7 +8,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from step8_train import fit_normalizer, make_xy, mlp_forward, normalize, train
+from deep_mlp import (
+    compute_best_decisions,
+    predict_deep_mlp,
+    train_deep_mlp,
+)
+from step8_train import fit_normalizer, make_xy, mlp_forward, normalize
 
 from src.ai.baselines import BuyAndHoldPlayer, MovingAverageCrossoverPlayer
 from src.ai.player import BinaryProbabilities, PlayerDecision
@@ -36,8 +41,11 @@ class LearningPlayer:
         self.params, self.mean, self.std = params, mean, std
 
     def decide(self, observation):
-        x = normalize(np.array([observation.log_returns]), self.mean, self.std)
-        p = float(mlp_forward(x, self.params)[0][0, 1])
+        if "scaler_median" in self.params:
+            p = float(predict_deep_mlp(np.array([observation.log_returns]), self.params)[0, 1])
+        else:
+            x = normalize(np.array([observation.log_returns]), self.mean, self.std)
+            p = float(mlp_forward(x, self.params)[0][0, 1])
         return PlayerDecision(
             "long" if p >= 0.5 else "flat", BinaryProbabilities(p, 1 - p)
         )
@@ -122,6 +130,13 @@ def export(
     xt, yt = make_xy(values, splits.train, 64)
     xv, yv = make_xy(values, val, 64)
     mean, std = fit_normalizer(xt)
+    return_dates = list(frame.index[1:].date)
+    train_oracle = compute_best_decisions(
+        values, splits.train, dates=return_dates, split_name="train", horizon=3
+    )
+    val_oracle = compute_best_decisions(
+        values, val, dates=return_dates, split_name="validation", horizon=3
+    )
     progress("Training")
     if model == "Transformer":
         from transformer_reference import fit_transformer
@@ -130,19 +145,20 @@ def export(
             xt, yt, xv, yv, seed, variant, epochs, checkpoint
         )
     else:
-        params, history = train(
-            normalize(xt, mean, std),
+        params, history, parameter_count = train_deep_mlp(
+            xt,
             yt,
-            normalize(xv, mean, std),
+            xv,
             yv,
+            train_oracle=train_oracle,
+            val_oracle=val_oracle,
             seed=seed,
             epochs=epochs,
         )
         np.savez(checkpoint, **params, mean=mean, std=std)
-        parameter_count = sum(w.size for w in params.values())
 
         def predict(windows):
-            return mlp_forward(normalize(windows, mean, std), params)[0][:, 1]
+            return predict_deep_mlp(windows, params)[:, 1]
 
     class Predictor:
         name = model
@@ -297,6 +313,38 @@ def export(
         for i, case in enumerate(cases):
             case["occlusion"] = [float(case["p"] - column[i]) for column in inspection]
             case["period"] = str(segment[i + 64].date)[:7]
+            case["bestDecision"] = val_oracle["records"][i]["bestDecision"]
+            case["forward3dReturn"] = val_oracle["records"][i]["forward3dReturn"]
+            case["oracleReason"] = val_oracle["records"][i]["reason"]
+    oracle_pred_match = float(np.mean(predicted.astype(int) == val_oracle["labels"]))
+    oracle_f1_scores = []
+    for cls in (0, 1):
+        denom = int((predicted == cls).sum() + (val_oracle["labels"] == cls).sum())
+        oracle_f1_scores.append(
+            float(2 * ((predicted == cls) & (val_oracle["labels"] == cls)).sum() / denom)
+            if denom
+            else 0.0
+        )
+    best_decisions_payload = dict(
+        horizon=val_oracle["horizon"],
+        trainCount=train_oracle["count"],
+        trainLongShare=train_oracle["longShare"],
+        trainNaiveUpShare=train_oracle["naiveUpShare"],
+        trainAgreementRate=train_oracle["agreementRate"],
+        trainFilteredCount=train_oracle["naiveFilteredCount"],
+        trainTrendHeldCount=train_oracle["trendHeldCount"],
+        validationCount=val_oracle["count"],
+        validationLongShare=val_oracle["longShare"],
+        validationNaiveUpShare=val_oracle["naiveUpShare"],
+        validationAgreementRate=val_oracle["agreementRate"],
+        validationFilteredCount=val_oracle["naiveFilteredCount"],
+        validationTrendHeldCount=val_oracle["trendHeldCount"],
+        oracleCumulativeReturn=val_oracle["oracleCumulativeReturn"],
+        oracleMaxDrawdown=val_oracle["oracleMaxDrawdown"],
+        modelOracleAgreement=oracle_pred_match,
+        modelOracleMacroF1=float(np.mean(oracle_f1_scores)),
+        records=val_oracle["records"],
+    )
     return dict(
         **(
             dict(
@@ -351,6 +399,7 @@ def export(
         returns=values[val[0] - 63 : val[-1] + 1].tolist(),
         cases=cases,
         strategies=strategies,
+        bestDecisions=best_decisions_payload,
     )
 
 

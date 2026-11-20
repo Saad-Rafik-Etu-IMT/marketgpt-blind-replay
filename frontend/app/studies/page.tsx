@@ -37,7 +37,46 @@ type Study = {
   status: State;
   runs: Run[];
 };
-type Sample = { index: number; up: boolean; p: number; period: string };
+type Sample = {
+  index: number;
+  up: boolean;
+  p: number;
+  period: string;
+  bestDecision?: string;
+  forward3dReturn?: number;
+  oracleReason?: string;
+};
+type BestDecisionRecord = {
+  index: number;
+  barIndex: number;
+  period: string;
+  bestDecision: string;
+  naiveUp: boolean;
+  nextReturn: number;
+  forward3dReturn: number;
+  localVolatility: number;
+  reason: string;
+};
+type BestDecisions = {
+  horizon: number;
+  trainCount: number;
+  trainLongShare: number;
+  trainNaiveUpShare: number;
+  trainAgreementRate: number;
+  trainFilteredCount: number;
+  trainTrendHeldCount: number;
+  validationCount: number;
+  validationLongShare: number;
+  validationNaiveUpShare: number;
+  validationAgreementRate: number;
+  validationFilteredCount: number;
+  validationTrendHeldCount: number;
+  oracleCumulativeReturn: number;
+  oracleMaxDrawdown: number;
+  modelOracleAgreement: number;
+  modelOracleMacroF1: number;
+  records: BestDecisionRecord[];
+};
 type Strategy = {
   name: string;
   gain: number;
@@ -67,6 +106,7 @@ type Report = {
   strategies: Strategy[];
   accounting: string;
   rejections?: number[];
+  bestDecisions?: BestDecisions;
 };
 const tabs = [
   "Experiment",
@@ -282,6 +322,64 @@ function Results({ r, inspect }: { r: Report; inspect: (i: number) => void }) {
         Full-period paired 95% interval for accuracy difference vs always up:{" "}
         {r.interval.map(pct).join(" to ")}.
       </p>
+      {r.bestDecisions && (
+        <details className="bench-panel">
+          <summary>
+            Logged best decisions (hindsight {r.bestDecisions.horizon}d oracle) ·
+            Model agreement {pct(r.bestDecisions.modelOracleAgreement)} · Oracle
+            macro-F1 {r.bestDecisions.modelOracleMacroF1.toFixed(3)}
+          </summary>
+          <p>
+            Oracle target long share {pct(r.bestDecisions.validationLongShare)}{" "}
+            (vs {pct(r.bestDecisions.validationNaiveUpShare)} raw 1d up) ·
+            filtered {r.bestDecisions.validationFilteredCount} noisy 1d bounces
+            ahead of drawdowns · held through{" "}
+            {r.bestDecisions.validationTrendHeldCount} minor 1d dips · hindsight
+            ceiling return {pct(r.bestDecisions.oracleCumulativeReturn)} (max DD{" "}
+            {pct(r.bestDecisions.oracleMaxDrawdown)}).
+          </p>
+          <div className="table-scroll" style={{ maxHeight: 260 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Case</th>
+                  <th>Period</th>
+                  <th>Model P(up)</th>
+                  <th>Best decision</th>
+                  <th>1d return</th>
+                  <th>3d return</th>
+                  <th>Rationale</th>
+                </tr>
+              </thead>
+              <tbody>
+                {r.bestDecisions.records
+                  .filter((rec) => period === "all" || rec.period === period)
+                  .slice(0, 120)
+                  .map((rec) => (
+                    <tr key={rec.index}>
+                      <td>
+                        <button
+                          className="bench-button"
+                          onClick={() => inspect(rec.index)}
+                        >
+                          #{rec.index + 1}
+                        </button>
+                      </td>
+                      <td>{rec.period}</td>
+                      <td>{pct(r.samples[rec.index]?.p ?? 0.5)}</td>
+                      <td>
+                        <strong>{rec.bestDecision}</strong>
+                      </td>
+                      <td>{pct(Math.expm1(rec.nextReturn))}</td>
+                      <td>{pct(Math.expm1(rec.forward3dReturn))}</td>
+                      <td>{rec.reason}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
       <label>
         Browse{" "}
         <select value={filter} onChange={(v) => f(v.target.value)}>
@@ -319,10 +417,10 @@ function Guide({
       ),
   });
   const [start, set] = useState<number | null>(() =>
-      typeof window === "undefined"
-        ? null
-        : Number(sessionStorage.getItem("rehearsal-start")) || null,
-    ),
+    typeof window === "undefined"
+      ? null
+      : Number(sessionStorage.getItem("rehearsal-start")) || null,
+  ),
     [elapsed, tick] = useState(0);
   useEffect(() => {
     if (start === null) return;
@@ -666,8 +764,8 @@ export default function Studies() {
                         new Set(s.runs.map((x) => x.model + " / " + x.variant)),
                       ).map((group) => {
                         const rr = s.runs.filter(
-                            (x) => x.model + " / " + x.variant === group,
-                          ),
+                          (x) => x.model + " / " + x.variant === group,
+                        ),
                           scores = rr.map((x) => x.f1);
                         return (
                           <tr key={group}>
@@ -708,7 +806,7 @@ export default function Studies() {
                 {r && (
                   <p>
                     {run.model === "MLP"
-                      ? "64 normalized returns → 32 ReLU units → two classes"
+                      ? "64 blind returns + engineered multi-horizon/volatility/trend features → RobustScaler → 128-64-32 BatchNorm/Dropout/Residual Deep MLP (trained with hindsight best-decision guidance) → two classes"
                       : "64 quantile tokens → 16-dimensional embeddings → two attention heads → mean pooling → two classes"}{" "}
                     · {r.parameters} parameters · {s.config.epochs} epochs
                   </p>
@@ -734,6 +832,19 @@ export default function Studies() {
                 Training mean {r.normalization.mean.toPrecision(4)} · standard
                 deviation {r.normalization.std.toPrecision(4)}
               </p>
+              {r.bestDecisions && (
+                <p>
+                  Logged best decisions ({r.bestDecisions.horizon}d cost- &
+                  drawdown-aware oracle, saved in{" "}
+                  <code>best_decisions.json</code>): train long share{" "}
+                  {pct(r.bestDecisions.trainLongShare)} (filtered{" "}
+                  {r.bestDecisions.trainFilteredCount} noisy 1d bounces, held{" "}
+                  {r.bestDecisions.trainTrendHeldCount} trend dips) · validation
+                  long share {pct(r.bestDecisions.validationLongShare)} (filtered{" "}
+                  {r.bestDecisions.validationFilteredCount} bounces, held{" "}
+                  {r.bestDecisions.validationTrendHeldCount} dips).
+                </p>
+              )}
               <SeriesPlot
                 values={r.bins}
                 label="Train-fitted quantile boundaries"

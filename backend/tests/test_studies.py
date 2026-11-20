@@ -204,3 +204,80 @@ def test_timeline_does_not_include_test_values(monkeypatch):
     test_row["adjusted_close"] = 1e9
     assert dataset_timeline(pd.concat([frame, test_row]), config) == timeline
     assert all(p["split"] != "test" for p in timeline["points"])
+
+
+def test_study_best_decisions_and_inspector_expose_logged_oracle(monkeypatch, tmp_path):
+    study = str(uuid4())
+    folder = tmp_path / "studies" / study
+    folder.mkdir(parents=True)
+    (folder / "config.json").write_text(
+        json.dumps(dict(models=["MLP"], variants=["reference"], seeds=[0]))
+    )
+    best_payload = dict(
+        horizon=3,
+        trainCount=100,
+        trainLongShare=0.58,
+        trainNaiveUpShare=0.54,
+        trainAgreementRate=0.76,
+        trainFilteredCount=12,
+        trainTrendHeldCount=16,
+        validationCount=1,
+        validationLongShare=1.0,
+        validationNaiveUpShare=0.0,
+        validationAgreementRate=0.0,
+        validationFilteredCount=0,
+        validationTrendHeldCount=1,
+        oracleCumulativeReturn=0.42,
+        oracleMaxDrawdown=0.06,
+        modelOracleAgreement=1.0,
+        modelOracleMacroF1=1.0,
+        records=[
+            dict(
+                index=0,
+                barIndex=64,
+                period="2017-07",
+                bestDecision="long",
+                naiveUp=False,
+                nextReturn=-0.002,
+                forward3dReturn=0.015,
+                localVolatility=0.008,
+                reason="Held trend through minor 1d dip",
+            )
+        ],
+    )
+    (folder / "best_decisions.json").write_text(json.dumps(best_payload))
+    case = dict(
+        p=0.68,
+        next=-0.002,
+        period="2017-07",
+        bestDecision="long",
+        forward3dReturn=0.015,
+        oracleReason="Held trend through minor 1d dip",
+        actions=[dict(target="long", status="filled", price=100, reason=None)],
+        occlusion=[0.01] * 8,
+    )
+    (folder / "MLP-reference-0.json").write_text(
+        json.dumps(
+            dict(
+                strategies=[dict(name="MLP")],
+                cases=[case],
+                returns=[0.001] * 64,
+                bestDecisions=best_payload,
+            )
+        )
+    )
+    monkeypatch.setattr(
+        routes_studies, "get_settings", lambda: SimpleNamespace(data_dir=tmp_path)
+    )
+    monkeypatch.delenv("MRTL_JURY_ONLY", raising=False)
+    client = TestClient(create_app())
+
+    bd_res = client.get(f"/api/studies/{study}/best-decisions")
+    assert bd_res.status_code == 200
+    assert bd_res.json()["horizon"] == 3
+    assert bd_res.json()["records"][0]["bestDecision"] == "long"
+
+    case_res = client.get(f"/api/studies/{study}/MLP-reference-0/case/0")
+    assert case_res.status_code == 200
+    assert case_res.json()["outcome"]["bestDecision"] == "long"
+    assert case_res.json()["outcome"]["forward3dReturn"] == 0.015

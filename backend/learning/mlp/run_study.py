@@ -62,6 +62,8 @@ def work(root):
                     raise ValueError("Timeline and run use different data")
                 if completed == 0:
                     write(root / "timeline.json", timeline)
+                if "bestDecisions" in result and not (root / "best_decisions.json").exists():
+                    write(root / "best_decisions.json", result["bestDecisions"])
                 write(root / (key + ".json"), result)
                 write(root / (key + ".overview"), overview_entry(key, result))
                 write(
