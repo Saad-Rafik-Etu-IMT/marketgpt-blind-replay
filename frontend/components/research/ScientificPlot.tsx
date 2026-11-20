@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 export const plotColors = [
   "#148b82",
@@ -35,6 +35,8 @@ export function PlotFrame({
   height?: number;
 }) {
   const ref = useRef<SVGSVGElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [expanded, setExpanded] = useState(false);
   function download() {
     if (!ref.current) return;
     const clone = ref.current.cloneNode(true) as SVGSVGElement;
@@ -58,17 +60,61 @@ export function PlotFrame({
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  const chart = (isExpanded = false) => (
+    <svg
+      ref={isExpanded ? undefined : ref}
+      className="science-svg"
+      viewBox={`0 0 700 ${height}`}
+      role="img"
+      aria-label={title}
+    >
+      <rect width="700" height={height} fill="var(--panel)" />
+      <text
+        className="plot-paper-title"
+        x="350"
+        y="15"
+        fill="var(--fg)"
+        fontSize="11"
+        textAnchor="middle"
+      >
+        {title}
+      </text>
+      {children}
+    </svg>
+  );
   return (
     <figure className="science-figure">
       <figcaption>
         <strong>{title}</strong>
-        <button
-          className="bench-button plot-export"
-          onClick={download}
-          aria-label={`Export ${title} as SVG`}
-        >
-          Export SVG
-        </button>
+        <div className="plot-tools">
+          <button
+            className="bench-button plot-export"
+            aria-label={`Expand ${title}`}
+            onClick={() => {
+              setExpanded(true);
+              dialog.current?.showModal();
+            }}
+            title="Expand chart"
+          >
+            <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+              <path
+                d="M3 8V3h5m4 0h5v5m0 4v5h-5m-4 0H3v-5"
+                stroke="currentColor"
+                fill="none"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            className="bench-button plot-export"
+            onClick={download}
+            aria-label={`Export ${title} as SVG`}
+          >
+            SVG
+          </button>
+        </div>
       </figcaption>
       <div
         className="science-scroll"
@@ -76,26 +122,33 @@ export function PlotFrame({
         role="region"
         aria-label={`${title}, scroll to view full chart on narrow screens`}
       >
-        <svg
-          ref={ref}
-          className="science-svg"
-          viewBox={`0 0 700 ${height}`}
-          role="img"
-          aria-label={title}
-        >
-          <rect width="700" height={height} fill="var(--panel)" />
-          <text
-            x="350"
-            y="15"
-            fill="var(--fg)"
-            fontSize="11"
-            textAnchor="middle"
-          >
-            {title}
-          </text>
-          {children}
-        </svg>
+        {chart()}
       </div>
+      <dialog
+        ref={dialog}
+        className="plot-dialog"
+        aria-label={title}
+        onClose={() => setExpanded(false)}
+      >
+        <div className="plot-dialog-header">
+          <h2>{title}</h2>
+          <button
+            className="bench-button plot-export"
+            onClick={download}
+            aria-label={`Download ${title} as SVG`}
+          >
+            Export SVG
+          </button>
+          <button
+            className="bench-button"
+            onClick={() => dialog.current?.close()}
+            aria-label="Close expanded chart"
+          >
+            Close
+          </button>
+        </div>
+        {expanded && <div className="science-scroll">{chart(true)}</div>}
+      </dialog>
     </figure>
   );
 }

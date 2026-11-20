@@ -63,15 +63,15 @@ export function HumanEvaluation({ base }: { base: string }) {
   return (
     <section className="bench-panel">
       <h2>Explanation comprehension study</h2>
-      <p>
-        Give participants the same measured facts in different formats on
-        different, counterbalanced cases. Ask for the model’s estimated rising
-        probability (percent, one decimal) and the number (1–8, oldest to
-        newest) of the block with the largest absolute measured sensitivity.
-        Each answer is worth one point. Capture preference after both formats.
-      </p>
       <details>
         <summary>Response file format and collection instructions</summary>
+        <p>
+          Give participants the same measured facts in different formats on
+          different, counterbalanced cases. Ask for the model’s estimated rising
+          probability (percent, one decimal) and the number (1–8, oldest to
+          newest) of the block with the largest absolute measured sensitivity.
+          Each answer is worth one point. Capture preference after both formats.
+        </p>
         <p>
           Use anonymous codes, one row per participant and case, case numbers as
           shown in Inspector. Mark the actual explanation source and whether LLM

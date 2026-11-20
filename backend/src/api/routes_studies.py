@@ -69,17 +69,27 @@ def status(folder):
 
 @router.get("")
 def list_studies():
+    studies = []
+    for path in sorted(
+        root().glob("*/status.json"), key=lambda p: p.stat().st_mtime, reverse=True
+    ):
+        folder = path.parent
+        config_path = folder / "config.json"
+        config = read(config_path) if config_path.is_file() else {}
+        studies.append(
+            dict(
+                id=folder.name,
+                **status(folder),
+                source=config.get("source"),
+                models=config.get("models", []),
+                epochs=config.get("epochs"),
+                hasTrace=(folder / "timeline.json").is_file(),
+            )
+        )
     return dict(
         sources=["synthetic", *sorted(sources())],
         transformer=find_spec("torch") is not None,
-        studies=[
-            dict(id=p.parent.name, **status(p.parent))
-            for p in sorted(
-                root().glob("*/status.json"),
-                key=lambda p: p.stat().st_mtime,
-                reverse=True,
-            )
-        ],
+        studies=studies,
     )
 
 

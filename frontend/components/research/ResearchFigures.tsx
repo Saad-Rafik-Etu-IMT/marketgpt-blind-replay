@@ -43,6 +43,7 @@ export function ModelFigures({
   const matched = runs.filter(
     (r) => r.variant === "reference" && r.seed === seed,
   );
+  const hasTransformer = runs.some((r) => r.model === "Transformer");
   const xmax = Math.max(
     1,
     ...matched.flatMap((r) => r.curves.map((c) => c.step)),
@@ -56,15 +57,22 @@ export function ModelFigures({
   return (
     <div className="research-stack">
       <div className="study-controls">
-        <label>
-          Ablation
-          <select value={variant} onChange={(e) => setVariant(e.target.value)}>
-            <option value="no-position">Without positional information</option>
-            <option value="no-dropout">Without dropout</option>
-            <option value="no-decay">Without weight decay</option>
-            <option value="fixed-lr">Fixed learning rate</option>
-          </select>
-        </label>
+        {hasTransformer && (
+          <label>
+            Ablation
+            <select
+              value={variant}
+              onChange={(e) => setVariant(e.target.value)}
+            >
+              <option value="no-position">
+                Without positional information
+              </option>
+              <option value="no-dropout">Without dropout</option>
+              <option value="no-decay">Without weight decay</option>
+              <option value="fixed-lr">Fixed learning rate</option>
+            </select>
+          </label>
+        )}
         <label>
           Comparison seed
           <select value={seed} onChange={(e) => onSeed(Number(e.target.value))}>
@@ -74,58 +82,81 @@ export function ModelFigures({
           </select>
         </label>
       </div>
-      {paired.length ? (
-        <>
+      <div className="comparison-figures result-overview">
+        {matched.length > 0 && (
           <LinePlot
-            title="Paired Transformer ablation"
-            series={paired.map((p, i) => ({
-              name: `Seed ${p.seed}`,
+            title="Reference model performance"
+            series={matched.map((r, i) => ({
+              name: r.model,
               points: [
-                { x: 0, y: p.base },
-                { x: 1, y: p.other },
+                { x: 0, y: r.accuracy },
+                { x: 1, y: r.f1 },
               ],
               dots: true,
+              scatter: true,
               color: plotColors[i % plotColors.length],
             }))}
             xDomain={[0, 1]}
             yDomain={[0, 1]}
-            formatX={(v) => (v === 0 ? "Reference" : variant)}
-            xLabel="Same seed · same validation data"
-            yLabel="Macro-F1"
+            formatX={(v) => (v === 0 ? "Accuracy" : "Macro-F1")}
+            xLabel="Same seed and validation windows"
+            formatY={pct}
           />
-          <p>
-            {paired.length === 1
-              ? "One paired seed"
-              : `${paired.length} paired seeds`}{" "}
-            · mean reference minus ablation {mean.toFixed(3)} ·{" "}
-            {seeds.length - paired.length} seed(s) without a complete pair.
-          </p>
-          <details>
-            <summary>Exact paired values</summary>
-            <table>
-              <thead>
-                <tr>
-                  <th>Seed</th>
-                  <th>Reference</th>
-                  <th>{variant}</th>
-                  <th>Difference</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paired.map((p) => (
-                  <tr key={p.seed}>
-                    <td>{p.seed}</td>
-                    <td>{p.base.toFixed(3)}</td>
-                    <td>{p.other.toFixed(3)}</td>
-                    <td>{(p.base - p.other).toFixed(3)}</td>
+        )}
+        {hasTransformer && paired.length > 0 && (
+          <div>
+            <LinePlot
+              title="Paired Transformer ablation"
+              series={paired.map((p, i) => ({
+                name: `Seed ${p.seed}`,
+                points: [
+                  { x: 0, y: p.base },
+                  { x: 1, y: p.other },
+                ],
+                dots: true,
+                color: plotColors[i % plotColors.length],
+              }))}
+              xDomain={[0, 1]}
+              yDomain={[0, 1]}
+              formatX={(v) => (v === 0 ? "Reference" : variant)}
+              xLabel="Same seed · same validation data"
+              yLabel="Macro-F1"
+            />
+            <p className="muted compact-status">
+              {paired.length === 1
+                ? "One paired seed"
+                : `${paired.length} paired seeds`}{" "}
+              · mean reference minus ablation {mean.toFixed(3)} ·{" "}
+              {seeds.length - paired.length} seed(s) without a complete pair.
+            </p>
+            <details>
+              <summary>Exact paired values</summary>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Seed</th>
+                    <th>Reference</th>
+                    <th>{variant}</th>
+                    <th>Difference</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </details>
-        </>
-      ) : (
-        <p className="bench-notice">
+                </thead>
+                <tbody>
+                  {paired.map((p) => (
+                    <tr key={p.seed}>
+                      <td>{p.seed}</td>
+                      <td>{p.base.toFixed(3)}</td>
+                      <td>{p.other.toFixed(3)}</td>
+                      <td>{(p.base - p.other).toFixed(3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </details>
+          </div>
+        )}
+      </div>
+      {hasTransformer && !paired.length && (
+        <p className="muted">
           Paired ablation · no matched reference and {variant} runs yet. Enable
           ablations when training.
         </p>
@@ -187,23 +218,6 @@ export function ModelFigures({
               );
             })}
           </div>
-          <LinePlot
-            title="Reference model performance"
-            series={matched.map((r, i) => ({
-              name: r.model,
-              points: [
-                { x: 0, y: r.accuracy },
-                { x: 1, y: r.f1 },
-              ],
-              dots: true,
-              color: plotColors[i % plotColors.length],
-            }))}
-            xDomain={[0, 1]}
-            yDomain={[0, 1]}
-            formatX={(v) => (v === 0 ? "Accuracy" : "Macro-F1")}
-            xLabel="Same seed and validation windows"
-            formatY={pct}
-          />
         </>
       )}
     </div>

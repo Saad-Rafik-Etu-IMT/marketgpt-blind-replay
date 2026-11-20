@@ -29,7 +29,7 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
-        MRTL_DATA_DIR: `./data/e2e-studies-${process.pid}`,
+        MRTL_DATA_DIR: `./data/e2e-studies-${Date.now()}-${process.pid}`,
         MRTL_DATABASE_URL: `sqlite:///./data/db/e2e-${Date.now()}-${process.pid}.sqlite`,
         MRTL_FRONTEND_ORIGIN: frontendUrl,
       },

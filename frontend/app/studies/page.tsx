@@ -14,12 +14,13 @@ import {
   DatasetFigures,
 } from "@/components/research/ResearchFigures";
 import { HumanEvaluation } from "@/components/research/HumanEvaluation";
+import { studyLabel, type StudySummary } from "@/lib/research/study-summary";
 
 type State = { state: string; message: string; done: number; total: number };
 type Inventory = {
   sources: string[];
   transformer: boolean;
-  studies: ({ id: string } & State)[];
+  studies: StudySummary[];
 };
 type Run = {
   key: string;
@@ -80,9 +81,11 @@ const tabs = [
 function Launcher({
   inv,
   open,
+  visible,
 }: {
   inv: Inventory;
   open: (id: string) => void;
+  visible: boolean;
 }) {
   const [source, s] = useState("synthetic"),
     [models, m] = useState("MLP"),
@@ -92,6 +95,11 @@ function Launcher({
     [busy, b] = useState(false),
     [err, x] = useState("");
   async function submit() {
+    if (
+      busy ||
+      inv.studies.some((s) => ["queued", "running"].includes(s.state))
+    )
+      return;
     b(true);
     x("");
     try {
@@ -114,8 +122,15 @@ function Launcher({
     }
   }
   return (
-    <details className="bench-panel" open={!inv.studies.length}>
-      <summary>New validation study</summary>
+    <form
+      id="new-study-form"
+      className="study-form"
+      hidden={!visible}
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+    >
       <div className="study-controls">
         <label>
           Dataset{" "}
@@ -163,20 +178,23 @@ function Launcher({
         )}
         <button
           className="bench-button primary-action"
-          disabled={busy}
-          onClick={submit}
+          disabled={
+            busy ||
+            inv.studies.some((s) => ["queued", "running"].includes(s.state))
+          }
+          type="submit"
         >
-          Start training
+          {busy ? "Starting…" : "Start training"}
         </button>
       </div>
       {!inv.transformer && (
-        <p>
+        <p className="muted">
           Enable Transformer runs by installing CPU PyTorch in the backend
           environment.
         </p>
       )}
       {err && <p role="alert">{err}</p>}
-    </details>
+    </form>
   );
 }
 function drawdowns(equity: number[]) {
@@ -201,46 +219,66 @@ function Results({ r, inspect }: { r: Report; inspect: (i: number) => void }) {
     .sort((a, b) => Math.abs(b.p - 0.5) - Math.abs(a.p - 0.5));
   return (
     <section className="bench-panel">
-      <h2>Validation results</h2>
-      <label>
-        Period{" "}
-        <select value={period} onChange={(v) => set(v.target.value)}>
-          {["all", ...Array.from(new Set(r.samples.map((x) => x.period)))].map(
-            (v) => (
+      <div className="section-heading">
+        <h2>Validation results</h2>
+        <label className="study-field short-field">
+          Period{" "}
+          <select value={period} onChange={(v) => set(v.target.value)}>
+            {[
+              "all",
+              ...Array.from(new Set(r.samples.map((x) => x.period))),
+            ].map((v) => (
               <option key={v}>{v}</option>
-            ),
-          )}
-        </select>
-      </label>
-      <p>
-        {rows.length} cases · Model accuracy {accuracy(modelHits)} · Always-up
-        accuracy {accuracy(alwaysUpHits)}
-      </p>
-      <table>
-        <caption>Confusion matrix</caption>
-        <thead>
-          <tr>
-            <th>Actual / predicted</th>
-            <th>Not up</th>
-            <th>Up</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th>Not up</th>
-            <td>{cells[0]}</td>
-            <td>{cells[1]}</td>
-          </tr>
-          <tr>
-            <th>Up</th>
-            <td>{cells[2]}</td>
-            <td>{cells[3]}</td>
-          </tr>
-        </tbody>
-      </table>
-      <ConfusionPlot cells={cells} />
-      <ReliabilityPlot key={period} samples={rows} inspect={inspect} />
-      <p>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="metric-strip">
+        <div>
+          <span>Decisions</span>
+          <strong>{rows.length}</strong>
+        </div>
+        <div>
+          <span>Model accuracy</span>
+          <strong>{accuracy(modelHits)}</strong>
+        </div>
+        <div>
+          <span>Always-up baseline</span>
+          <strong>{accuracy(alwaysUpHits)}</strong>
+        </div>
+      </div>
+      <div className="comparison-figures evaluation-figures">
+        <div>
+          <ConfusionPlot cells={cells} />
+          <details className="supporting-details">
+            <summary>Confusion matrix</summary>
+            <table>
+              <caption>Exact confusion counts</caption>
+              <thead>
+                <tr>
+                  <th>Actual / predicted</th>
+                  <th>Not up</th>
+                  <th>Up</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>Not up</th>
+                  <td>{cells[0]}</td>
+                  <td>{cells[1]}</td>
+                </tr>
+                <tr>
+                  <th>Up</th>
+                  <td>{cells[2]}</td>
+                  <td>{cells[3]}</td>
+                </tr>
+              </tbody>
+            </table>
+          </details>
+        </div>
+        <ReliabilityPlot key={period} samples={rows} inspect={inspect} />
+      </div>
+      <p className="muted compact-status">
         Full-period paired 95% interval for accuracy difference vs always up:{" "}
         {r.interval.map(pct).join(" to ")}.
       </p>
@@ -380,11 +418,17 @@ export default function Studies() {
   const params = useSearchParams(),
     router = useRouter();
   const id = params.get("study") || "",
-    tab = params.get("tab") || "Experiment",
-    index = Math.max(0, Number(params.get("case")) || 0);
-  function nav(change: Record<string, string>) {
+    tab = tabs.includes(params.get("tab") || "")
+      ? params.get("tab")!
+      : "Experiment",
+    index = Math.max(0, Math.trunc(Number(params.get("case")) || 0));
+  const [creating, setCreating] = useState<boolean | null>(null);
+  function nav(change: Record<string, string | null>) {
     const q = new URLSearchParams(params.toString());
-    for (const [k, v] of Object.entries(change)) q.set(k, v);
+    for (const [k, v] of Object.entries(change)) {
+      if (v === null) q.delete(k);
+      else q.set(k, v);
+    }
     router.push("/studies?" + q.toString(), { scroll: false });
   }
   const inv = useQuery({
@@ -392,6 +436,16 @@ export default function Studies() {
     queryFn: () => api<Inventory>(""),
     refetchInterval: 3500,
   });
+  const latest =
+    inv.data?.studies.find((s) => ["queued", "running"].includes(s.state)) ??
+    inv.data?.studies.find((s) => s.state === "complete") ??
+    inv.data?.studies[0];
+  useEffect(() => {
+    if (!params.has("study") && !params.has("new") && latest)
+      router.replace(`/studies?study=${latest.id}&tab=Experiment`, {
+        scroll: false,
+      });
+  }, [params, latest, router]);
   const study = useQuery({
     queryKey: ["study", id],
     queryFn: () => api<Study>("/" + id),
@@ -404,7 +458,18 @@ export default function Studies() {
         : 2000,
   });
   const s = study.data,
-    run = s?.runs.find((r) => r.key === params.get("run")) || s?.runs[0],
+    run =
+      s?.runs.find((r) => r.key === params.get("run")) ||
+      s?.runs.find(
+        (r) =>
+          params.has("seed") &&
+          r.seed === Number(params.get("seed")) &&
+          r.variant === (params.get("variant") || "reference"),
+      ) ||
+      s?.runs.find(
+        (r) => params.has("seed") && r.seed === Number(params.get("seed")),
+      ) ||
+      s?.runs[0],
     base = "/" + id + "/" + run?.key;
   const report = useQuery({
     queryKey: ["report", base],
@@ -439,54 +504,115 @@ export default function Studies() {
     );
   return (
     <div className="research-stack">
-      <Launcher
-        inv={inv.data}
-        open={(v) => nav({ study: v, run: "", tab: "Experiment", case: "0" })}
-      />
-      <section className="bench-panel">
-        <label>
-          Saved study{" "}
-          <select
-            value={id}
-            onChange={(v) => nav({ study: v.target.value, run: "", case: "0" })}
-          >
-            <option value="">Choose a study</option>
-            {inv.data.studies.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.id.slice(0, 8)} · {x.state}
-              </option>
-            ))}
-          </select>
-        </label>
-        {s && (
-          <>
-            <p role="status">
-              {s.config.source} · {s.status.message} · {s.status.done}/
-              {s.status.total} runs
-            </p>
-            {run && (
-              <label>
-                Active run{" "}
-                <select
-                  value={run.key}
-                  onChange={(v) => nav({ run: v.target.value, case: "0" })}
-                >
-                  {s.runs.map((x) => (
-                    <option key={x.key}>{x.key}</option>
-                  ))}
-                </select>
-              </label>
-            )}
+      <section className="bench-panel study-workspace">
+        <div className="workspace-controls">
+          <label className="study-field">
+            Saved study{" "}
+            <select
+              value={id}
+              onChange={(v) =>
+                nav({
+                  study: v.target.value,
+                  run: null,
+                  seed: null,
+                  variant: null,
+                  new: null,
+                  case: "0",
+                })
+              }
+            >
+              <option value="">Choose a study</option>
+              {inv.data.studies.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {studyLabel(x)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {run && (
+            <label className="study-field">
+              Active run{" "}
+              <select
+                value={run.key}
+                onChange={(v) =>
+                  nav({
+                    run: v.target.value,
+                    seed: null,
+                    variant: null,
+                    case: "0",
+                  })
+                }
+              >
+                {s?.runs.map((x) => (
+                  <option key={x.key} value={x.key}>
+                    {x.model} · {x.variant} · Seed {x.seed}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className="workspace-actions">
+            <button
+              type="button"
+              className="bench-button"
+              aria-expanded={
+                creating ?? (params.has("new") || !inv.data.studies.length)
+              }
+              aria-controls="new-study-form"
+              onClick={() =>
+                setCreating(
+                  !(
+                    creating ??
+                    (params.has("new") || !inv.data.studies.length)
+                  ),
+                )
+              }
+            >
+              New validation study
+            </button>
             {run && (
               <Link
                 className="bench-button primary-action"
                 href={`/replay?study=${id}&run=${run.key}&seed=${run.seed}&variant=${run.variant}&case=${index}`}
               >
-                Watch AI competition ↗
+                Watch AI competition <span aria-hidden="true">→</span>
               </Link>
             )}
-          </>
+          </div>
+        </div>
+        {s && (
+          <div className="study-status" role="status">
+            <span>
+              {s.config.source} · {s.status.message}
+            </span>
+            <span>
+              {s.status.done}/{s.status.total} runs
+            </span>
+            {["queued", "running"].includes(s.status.state) && (
+              <progress
+                value={s.status.done}
+                max={Math.max(1, s.status.total)}
+                aria-label="Training progress"
+              />
+            )}
+          </div>
         )}
+        <Launcher
+          visible={creating ?? (params.has("new") || !inv.data.studies.length)}
+          inv={inv.data}
+          open={(v) => {
+            setCreating(false);
+            nav({
+              study: v,
+              run: null,
+              seed: null,
+              variant: null,
+              tab: "Experiment",
+              case: "0",
+              new: null,
+            });
+          }}
+        />
       </section>
       {study.error && <p role="alert">{String(study.error)}</p>}
       {run && s && (
@@ -523,61 +649,71 @@ export default function Studies() {
                   if (match) nav({ run: match.key, case: "0" });
                 }}
               />
-              <table>
-                <thead>
-                  <tr>
-                    <th>Model / configuration</th>
-                    <th>Seeds</th>
-                    <th>Mean macro-F1</th>
-                    <th>Range</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from(
-                    new Set(s.runs.map((x) => x.model + " / " + x.variant)),
-                  ).map((group) => {
-                    const rr = s.runs.filter(
-                        (x) => x.model + " / " + x.variant === group,
-                      ),
-                      scores = rr.map((x) => x.f1);
-                    return (
-                      <tr key={group}>
-                        <th>{group}</th>
-                        <td>{rr.map((x) => x.seed).join(", ")}</td>
-                        <td>
-                          {(
-                            scores.reduce((a, b) => a + b) / scores.length
-                          ).toFixed(3)}
-                        </td>
-                        <td>
-                          {Math.min(...scores).toFixed(3)}–
-                          {Math.max(...scores).toFixed(3)}
-                        </td>
+              <details className="supporting-details">
+                <summary>Exact scores by model and configuration</summary>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Model / configuration</th>
+                        <th>Seeds</th>
+                        <th>Mean macro-F1</th>
+                        <th>Range</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <TrainingCurve
-                run={{
-                  id: run.key,
-                  model: run.model,
-                  dataset: s.config.source,
-                  split: "validation",
-                  checkpoint: r?.checkpoint || "",
-                  seed: run.seed,
-                  lossName: "Cross-entropy",
-                  curves: run.curves,
-                }}
-              />
-              {r && (
-                <p>
-                  {run.model === "MLP"
-                    ? "64 normalized returns → 32 ReLU units → two classes"
-                    : "64 quantile tokens → 16-dimensional embeddings → two attention heads → mean pooling → two classes"}{" "}
-                  · {r.parameters} parameters · {s.config.epochs} epochs
-                </p>
-              )}
+                    </thead>
+                    <tbody>
+                      {Array.from(
+                        new Set(s.runs.map((x) => x.model + " / " + x.variant)),
+                      ).map((group) => {
+                        const rr = s.runs.filter(
+                            (x) => x.model + " / " + x.variant === group,
+                          ),
+                          scores = rr.map((x) => x.f1);
+                        return (
+                          <tr key={group}>
+                            <th>{group}</th>
+                            <td>{rr.map((x) => x.seed).join(", ")}</td>
+                            <td>
+                              {(
+                                scores.reduce((a, b) => a + b) / scores.length
+                              ).toFixed(3)}
+                            </td>
+                            <td>
+                              {Math.min(...scores).toFixed(3)}–
+                              {Math.max(...scores).toFixed(3)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+              <details className="supporting-details">
+                <summary>
+                  Selected run architecture and exact loss trace
+                </summary>
+                <TrainingCurve
+                  run={{
+                    id: run.key,
+                    model: run.model,
+                    dataset: s.config.source,
+                    split: "validation",
+                    checkpoint: r?.checkpoint || "",
+                    seed: run.seed,
+                    lossName: "Cross-entropy",
+                    curves: run.curves,
+                  }}
+                />
+                {r && (
+                  <p>
+                    {run.model === "MLP"
+                      ? "64 normalized returns → 32 ReLU units → two classes"
+                      : "64 quantile tokens → 16-dimensional embeddings → two attention heads → mean pooling → two classes"}{" "}
+                    · {r.parameters} parameters · {s.config.epochs} epochs
+                  </p>
+                )}
+              </details>
             </section>
           )}
           {tab === "Data" && r && (
